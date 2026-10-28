@@ -1,6 +1,4 @@
 import { test, expect, type APIRequestContext } from "@playwright/test";
-const hostPassword = "test-host-confettis-2026",
-  starPassword = "test-star-couronne-2026";
 async function api(
   ctx: APIRequestContext,
   as: string,
@@ -56,21 +54,17 @@ test("complete multiplayer game: all answer types, secrecy, real race, anonymous
   const hp = await host.newPage();
   await hp.goto("/admin");
   const initial = await state(host.request);
-  if (!initial.initialized) {
-    await hp.getByLabel("Ton mot de passe hôte").fill(hostPassword);
-    await hp.getByLabel("Le mot de passe de Marlène").fill(starPassword);
-    await hp.getByRole("button", { name: "Créer la fête" }).click();
-  } else {
-    await api(host.request, "admin", "login", { password: hostPassword });
-    await api(host.request, "admin", "reset", { confirm: initial.room });
-    await hp.reload();
-  }
+  const runId = crypto.randomUUID().slice(0, 8);
+  await hp.getByLabel("Ton petit nom").fill(`Hôte ${runId}`);
+  await hp.getByRole("button", { name: "Ouvrir les coulisses" }).click();
   await expect(
-    hp.getByRole("heading", { name: "À toi de mener la danse." }),
+    hp.getByRole("button", { name: "Inviter les copains" }),
   ).toBeVisible();
+  if (initial.initialized)
+    await api(host.request, "admin", "reset", { confirm: initial.room });
   let d = await state(host.request);
   const room = d.room;
-  await api(star.request, "marlene", "login", { password: starPassword });
+  await api(star.request, "marlene", "join", { nickname: `Marlène ${runId}` });
   await api(star.request, "marlene", "consent");
   const tone = await host.request.post("/api/media", {
     headers: { Origin: "http://127.0.0.1:3005" },
@@ -168,7 +162,7 @@ test("complete multiplayer game: all answer types, secrecy, real race, anonymous
   });
   const pp = await projector.newPage();
   await pp.goto(`/present?room=${room}`);
-  await expect(pp.getByText("Scanne, choisis un pseudo")).toBeVisible();
+  await expect(pp.getByText("Scanne, entre ton nom")).toBeVisible();
   await api(guest.request, "guest", "open", {}, 403);
   const outsider = await browser.newContext();
   await api(outsider.request, "admin", "reveal", {}, 401);
@@ -350,5 +344,6 @@ test("responsive welcome, accessible fields, reduced motion and keyboard dialog"
   await page.getByRole("button", { name: "Fermer", exact: true }).click();
   await expect(page.getByRole("dialog")).not.toBeVisible();
   await expect(page.getByLabel("Ton petit nom")).toBeVisible();
-  await expect(page.getByLabel("Code de la fête")).toBeVisible();
+  await expect(page.getByLabel("Code de la fête")).toHaveCount(0);
+  await expect(page.locator('input[type="password"]')).toHaveCount(0);
 });

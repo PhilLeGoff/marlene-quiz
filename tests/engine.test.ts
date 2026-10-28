@@ -162,6 +162,31 @@ describe("scoring and normalization", () => {
   });
 });
 describe("authorization and hidden answers", () => {
+  it("reserves names across every role, ignoring accents, casing and extra spaces", () => {
+    let p = createParty("123456", { admin: "", marlene: "" }, 1000);
+    p = run(p, { role: "admin", playerId: "host" }, "join", {
+      nickname: "  Élodie  Martin ",
+    });
+    expect(() =>
+      run(p, guest(), "join", { nickname: "elodie   MARTIN" }),
+    ).toThrow("déjà pris");
+    p = run(p, { role: "marlene", playerId: "star" }, "join", {
+      nickname: "Marlène",
+    });
+    expect(() => run(p, guest(), "join", { nickname: "marlene" })).toThrow(
+      "déjà pris",
+    );
+    expect(leaderboard(p)).toHaveLength(0);
+    p = run(p, guest(), "join", { nickname: "A" });
+    expect(leaderboard(p)).toHaveLength(1);
+  });
+  it("lets the same identity reconnect without duplicate participation", () => {
+    let p = createParty("123456", { admin: "", marlene: "" }, 1000);
+    p = run(p, guest(), "join", { nickname: "Alice" });
+    p = run(p, guest(), "join", { nickname: "ALICE" });
+    expect(p.players).toHaveLength(1);
+  });
+
   it("erases the private key when its question is deleted", () => {
     let p = createParty("123456", { admin: "hash", marlene: "hash" }, 1000);
     p = run(p, star, "consent");

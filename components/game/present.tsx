@@ -120,7 +120,7 @@ export function Present() {
                   Qui connaît vraiment Marlène ?
                 </h1>
                 <p className="muted">
-                  Scanne, choisis un pseudo, entre dans la danse.
+                  Scanne, entre ton nom et rejoins la fête.
                 </p>
                 <div className="projector-code">{room}</div>
               </div>

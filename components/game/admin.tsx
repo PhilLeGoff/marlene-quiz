@@ -590,9 +590,9 @@ export function Admin() {
                 <div className="divider" />
                 <h3>Accès des invités</h3>
                 <p className="small-text muted">
-                  Partage le code {d.room}. Sur Sites, la visibilité du site
-                  doit permettre aux invités d’y accéder. Initialise les accès
-                  privés avant de partager le site.
+                  Partage le lien de la fête. Chaque personne entre son nom,
+                  sans mot de passe ni code à saisir. Un nom déjà utilisé par
+                  une autre personne est refusé.
                 </p>
                 <div className="divider" />
                 <h3>Questions facultatives</h3>

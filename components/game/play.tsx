@@ -30,7 +30,7 @@ export function Play() {
         <div className="auth-card">
           <EmptyParty
             title="La fête est par ici."
-            text="Choisis ton petit nom et saisis le code de la salle pour nous rejoindre."
+            text="Entre ton petit nom pour nous rejoindre."
           />
           <a className="btn primary wide" href="/">
             Rejoindre la fête <ArrowRight size={18} />

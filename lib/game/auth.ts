@@ -9,24 +9,6 @@ export const token = () => crypto.randomUUID() + crypto.randomUUID();
 export async function hash(value: string) {
   return hex(await crypto.subtle.digest("SHA-256", enc.encode(value)));
 }
-export async function password(value: string, salt = crypto.randomUUID()) {
-  const key = await crypto.subtle.importKey(
-    "raw",
-    enc.encode(value),
-    "PBKDF2",
-    false,
-    ["deriveBits"],
-  );
-  return `${salt}:${hex(await crypto.subtle.deriveBits({ name: "PBKDF2", salt: enc.encode(salt), iterations: 100_000, hash: "SHA-256" }, key, 256))}`;
-}
-export async function verify(value: string, stored: string) {
-  const salt = stored.split(":")[0];
-  const actual = await password(value, salt);
-  let diff = actual.length ^ stored.length;
-  for (let i = 0; i < actual.length; i++)
-    diff |= actual.charCodeAt(i) ^ (stored.charCodeAt(i) || 0);
-  return diff === 0;
-}
 export function cookie(req: Request, role: Role) {
   return req.headers
     .get("cookie")
@@ -44,7 +26,7 @@ export async function actor(
   if (!t) return null;
   const s = p.sessions[await hash(t)];
   if (!s || s.expires < Date.now() || s.role !== role) return null;
-  if (s.playerId && !p.players.some((x) => x.id === s.playerId && x.active))
+  if (!s.playerId || !p.players.some((x) => x.id === s.playerId && x.active))
     return null;
   return { role: s.role, playerId: s.playerId };
 }

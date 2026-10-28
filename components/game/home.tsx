@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   ArrowRight,
   Check,
@@ -21,17 +21,11 @@ import { Modal } from "./modal";
 export function Home() {
   const c = useParty();
   const [nickname, setNickname] = useState(""),
-    [room, setRoom] = useState(""),
     [avatar, setAvatar] = useState(0),
     [rules, setRules] = useState(false);
-  useEffect(() => {
-    const r = new URLSearchParams(location.search).get("room");
-    if (r) setRoom(r);
-  }, []);
   async function join(e: React.FormEvent) {
     e.preventDefault();
-    if (await c.command("join", { nickname, room, avatar }))
-      location.assign("/play");
+    if (await c.command("join", { nickname, avatar })) location.assign("/play");
   }
   return (
     <div className="home-page">
@@ -113,9 +107,9 @@ export function Home() {
               </div>
               <div className="ticket-body">
                 <h2>Entre dans la danse.</h2>
-                <p>Un pseudo, le code, et c’est parti !</p>
+                <p>Ton petit nom, et c’est parti !</p>
                 <form onSubmit={join}>
-                  <div className="join-fields">
+                  <div className="join-fields name-only">
                     <label>
                       Ton petit nom
                       <input
@@ -123,29 +117,11 @@ export function Home() {
                         autoComplete="nickname"
                         name="nickname"
                         placeholder="La légende du groupe"
-                        minLength={2}
+                        minLength={1}
                         maxLength={24}
                         required
                         value={nickname}
                         onChange={(e) => setNickname(e.target.value)}
-                      />
-                    </label>
-                    <label>
-                      Code de la fête
-                      <input
-                        disabled={c.loading}
-                        className="room-input"
-                        inputMode="numeric"
-                        autoComplete="off"
-                        placeholder="000 000"
-                        maxLength={6}
-                        pattern="[0-9]{6}"
-                        name="room"
-                        required
-                        value={room}
-                        onChange={(e) =>
-                          setRoom(e.target.value.replace(/\D/g, ""))
-                        }
                       />
                     </label>
                   </div>

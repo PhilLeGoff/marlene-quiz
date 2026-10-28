@@ -64,6 +64,7 @@ export type Secret = {
   updatedAt?: number;
 };
 export type Participant = {
+  role?: Exclude<Role, "present">;
   id: string;
   nickname: string;
   avatar: number;

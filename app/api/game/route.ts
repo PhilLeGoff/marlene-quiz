@@ -2,11 +2,9 @@ import {
   actor,
   boundedBody,
   hash,
-  password,
   sameOrigin,
   sessionCookie,
   token,
-  verify,
 } from "@/lib/game/auth";
 import {
   config,
@@ -15,9 +13,14 @@ import {
   rateLimit,
   readParty,
   putMedia,
-  hasSitesBindings,
 } from "@/lib/game/store";
-import { GameError, reduce, view, validateStrokes } from "@/lib/game/engine";
+import {
+  GameError,
+  reduce,
+  view,
+  validateStrokes,
+  nicknameKey,
+} from "@/lib/game/engine";
 import { createParty } from "@/lib/game/seed";
 import type { Actor, Command, Role } from "@/lib/game/types";
 export const dynamic = "force-dynamic";
@@ -38,13 +41,6 @@ const roleOf = (req: Request): Role => {
   const role = new URL(req.url).searchParams.get("as");
   return role === "admin" || role === "marlene" ? role : "guest";
 };
-function setupAvailable(req: Request) {
-  return !!(
-    config("SETUP_KEY") ||
-    (hasSitesBindings() && req.headers.get("oai-authenticated-user-id")) ||
-    process.env.NODE_ENV === "development"
-  );
-}
 function enrich<T extends object>(data: T) {
   const url = config("SUPABASE_URL"),
     key = config("SUPABASE_ANON_KEY");
@@ -74,8 +70,7 @@ export async function GET(req: Request) {
         ),
       );
     }
-    if (!current)
-      return json({ initialized: false, setupAvailable: setupAvailable(req) });
+    if (!current) return json({ initialized: false });
     let a = await actor(req, current.party, roleOf(req));
     const url = new URL(req.url);
     if (
@@ -131,101 +126,89 @@ export async function POST(req: Request) {
       throw new GameError("Action manquante.");
     await rateLimit(`request:${await hash(ip)}`, 2000);
     const role = roleOf(req);
-    if (body.action === "setup") {
-      await rateLimit(`auth:${await hash(ip)}`, 8);
-      if (await readParty())
-        throw new GameError("La fête est déjà créée.", 409);
-      if (!setupAvailable(req))
-        throw new GameError(
-          "Configure SETUP_KEY sur le serveur pour créer la fête.",
-          403,
+    if (["join", "login", "setup"].includes(body.action)) {
+      await rateLimit(`join:${await hash(ip)}`, 120);
+      // Everyone can start or enter the party with a name. Initialization is race-safe.
+      if (!(await readParty()))
+        await insertParty(
+          createParty(
+            String(
+              (crypto.getRandomValues(new Uint32Array(1))[0] % 900000) + 100000,
+            ),
+            { admin: "", marlene: "" },
+          ),
         );
-      if (config("SETUP_KEY") && body.setupKey !== config("SETUP_KEY"))
-        throw new GameError("Clé d’installation incorrecte.", 403);
-      const adminPassword = String(body.adminPassword ?? ""),
-        starPassword = String(body.starPassword ?? "");
-      if (
-        adminPassword.length < 12 ||
-        starPassword.length < 12 ||
-        adminPassword === starPassword
-      )
-        throw new GameError(
-          "Choisis deux mots de passe différents, de 12 caractères minimum.",
-        );
-      const credentials = {
-        admin: await password(adminPassword),
-        marlene: await password(starPassword),
-      };
-      const p = createParty(
-        String(
-          (crypto.getRandomValues(new Uint32Array(1))[0] % 900000) + 100000,
-        ),
-        credentials,
-      );
-      const t = token();
-      p.sessions[await hash(t)] = {
-        role: "admin",
-        expires: Date.now() + 2592000000,
-      };
-      if (!(await insertParty(p)))
-        throw new GameError("La fête est déjà créée.", 409);
-      return json(view(p, { role: "admin" }, 0), 200, {
-        "Set-Cookie": sessionCookie(req, "admin", t),
-      });
-    }
-    const current = await readParty();
-    if (!current) throw new GameError("L’hôte prépare encore la fête.", 404);
-    if (body.action === "login") {
-      await rateLimit(`auth:${await hash(ip)}`, 8);
-      if (role !== "admin" && role !== "marlene")
-        throw new GameError("Rôle invalide.");
-      if (
-        !(await verify(
-          String(body.password ?? ""),
-          current.party.credentials[role],
-        ))
-      )
-        throw new GameError("Mot de passe incorrect.", 403);
       const t = token(),
-        key = await hash(t);
-      const result = await mutate((p) => {
-        p.sessions[key] = { role, expires: Date.now() + 2592000000 };
-        return p;
+        key = await hash(t),
+        freshId = crypto.randomUUID();
+      let joined: Actor = { role, playerId: freshId };
+      const result = await mutate(async (p) => {
+        const own = [];
+        for (const r of ["guest", "admin", "marlene"] as const) {
+          const a = await actor(req, p, r);
+          if (a?.playerId) own.push(a);
+        }
+        const matching = own.find(
+          (a) =>
+            nicknameKey(
+              p.players.find((x) => x.id === a.playerId)!.nickname,
+            ) === nicknameKey(String(body.nickname ?? "")),
+        );
+        const current = own.find((a) => a.role === role);
+        joined = {
+          role,
+          playerId: matching?.playerId ?? current?.playerId ?? freshId,
+        };
+        // Expired sessions do not reserve names forever.
+        for (const player of p.players)
+          if (
+            !Object.values(p.sessions).some(
+              (s) => s.playerId === player.id && s.expires > Date.now(),
+            )
+          )
+            player.active = false;
+        const next = reduce(p, joined, { ...body, action: "join" });
+        next.credentials = { admin: "", marlene: "" };
+        for (const [oldKey, session] of Object.entries(next.sessions))
+          if (session.role === role && session.playerId === joined.playerId)
+            delete next.sessions[oldKey];
+        next.sessions[key] = { ...joined, expires: Date.now() + 2592000000 };
+        return next;
       });
-      return json(view(result.party, { role }, result.version), 200, {
+      return json(enrich(view(result.party, joined, result.version)), 200, {
         "Set-Cookie": sessionCookie(req, role, t),
       });
     }
+    const current = await readParty();
+    if (!current)
+      throw new GameError("Entre ton nom pour commencer la fête.", 404);
     let a = await actor(req, current.party, role);
     if (body.action === "logout") {
       const t = cookieValue(req, role);
       if (t) {
         const key = await hash(t);
         await mutate((p) => {
-          delete p.sessions[key];
+          const session = p.sessions[key];
+          for (const [oldKey, value] of Object.entries(p.sessions))
+            if (
+              oldKey === key ||
+              (session?.playerId && value.playerId === session.playerId)
+            )
+              delete p.sessions[oldKey];
+          if (
+            session?.playerId &&
+            !Object.values(p.sessions).some(
+              (s) => s.playerId === session.playerId && s.expires > Date.now(),
+            )
+          ) {
+            const player = p.players.find((x) => x.id === session.playerId);
+            if (player) player.active = false;
+          }
           return p;
         });
       }
       return json({ ok: true }, 200, {
         "Set-Cookie": sessionCookie(req, role, "", true),
-      });
-    }
-    if (body.action === "join") {
-      await rateLimit(`join:${await hash(ip)}`, 30);
-      if (body.room !== current.party.room)
-        throw new GameError("Ce code de salle n’est pas le bon.");
-      if (a?.role === "guest")
-        return json(view(current.party, a, current.version));
-      const t = token(),
-        key = await hash(t),
-        guest: Actor = { role: "guest", playerId: crypto.randomUUID() };
-      const result = await mutate((p) => {
-        const next = reduce(p, guest, body);
-        next.sessions[key] = { ...guest, expires: Date.now() + 2592000000 };
-        return next;
-      });
-      return json(view(result.party, guest, result.version), 200, {
-        "Set-Cookie": sessionCookie(req, "guest", t),
       });
     }
     if (!a) throw new GameError("Connecte-toi pour continuer.", 401);

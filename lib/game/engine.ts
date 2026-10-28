@@ -52,9 +52,18 @@ export function correct(
     (a) => normalize(a) === normalize(String(value)),
   );
 }
+export function nicknameKey(value: string) {
+  return value
+    .normalize("NFKC")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("fr")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 export function leaderboard(s: Party): RankedPlayer[] {
   const rows = s.players
-    .filter((p) => p.active)
+    .filter((p) => p.active && (!p.role || p.role === "guest"))
     .map((p) => {
       const events = s.events.filter(
         (e) => e.playerId === p.id && e.generation === s.generation,
@@ -373,29 +382,41 @@ export function reduce(
     must(privileged, "Cette action est réservée à Marlène ou à l’hôte.", 403);
   switch (cmd.action) {
     case "join": {
-      must(actor.role === "guest", "Session invalide.", 403);
+      must(actor.role !== "present", "Choisis un accès à la fête.", 403);
       const nickname = String(cmd.nickname ?? "")
+        .normalize("NFKC")
         .trim()
-        .replace(/[<>\u0000-\u001f]/g, "");
+        .replace(/[<>\u0000-\u001f]/g, "")
+        .replace(/\s+/g, " ");
       must(
-        nickname.length >= 2 && nickname.length <= 24,
-        "Choisis un pseudo de 2 à 24 caractères.",
+        nickname.length >= 1 && nickname.length <= 24,
+        "Entre un nom de 1 à 24 caractères.",
       );
-      must(s.players.length < 200, "La fête est complète.");
       must(
         !s.players.some(
-          (p) => normalize(p.nickname) === normalize(nickname) && p.active,
+          (p) =>
+            p.active &&
+            p.id !== actor.playerId &&
+            nicknameKey(p.nickname) === nicknameKey(nickname),
         ),
-        "Ce pseudo est déjà à la fête.",
+        "Ce nom est déjà pris. Choisis-en un autre.",
+        409,
       );
       must(actor.playerId, "Identité manquante.");
-      s.players.push({
-        id: actor.playerId,
-        nickname,
-        avatar: Math.max(0, Math.min(7, Number(cmd.avatar) || 0)),
-        joinedAt: now,
-        active: true,
-      });
+      const existing = s.players.find((p) => p.id === actor.playerId);
+      if (existing) {
+        existing.nickname = nickname;
+        existing.active = true;
+        if (actor.role === "guest") existing.role = "guest";
+      } else
+        s.players.push({
+          id: actor.playerId,
+          nickname,
+          avatar: Math.max(0, Math.min(7, Number(cmd.avatar) || 0)),
+          joinedAt: now,
+          active: true,
+          role: actor.role,
+        });
       break;
     }
     case "open": {
