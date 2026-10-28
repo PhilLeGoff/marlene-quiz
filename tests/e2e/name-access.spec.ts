@@ -3,10 +3,15 @@ const origin = process.env.TEST_BASE_URL ?? "http://127.0.0.1:3105";
 async function enter(ctx: APIRequestContext, role: string, nickname: string) {
   return ctx.post(`/api/game?as=${role}`, {
     headers: { Origin: origin },
-    data: { id: crypto.randomUUID(), action: "join", nickname },
+    data: {
+      id: crypto.randomUUID(),
+      action: "join",
+      nickname,
+      ...(role === "admin" ? { password: "admin-test-only" } : {}),
+    },
   });
 }
-test("name-only access, concurrent duplicate names, reconnect and sign-out", async ({
+test("guest/star name entry, protected admin, duplicate names, reconnect and sign-out", async ({
   browser,
 }) => {
   const a = await browser.newContext(),
@@ -31,10 +36,35 @@ test("name-only access, concurrent duplicate names, reconnect and sign-out", asy
     data: { id: crypto.randomUUID(), action: "logout" },
   });
   expect((await enter(other.request, "guest", name)).status()).toBe(200);
+  const missing = await c.request.post("/api/game?as=admin", {
+    headers: { Origin: origin },
+    data: {
+      id: crypto.randomUUID(),
+      action: "join",
+      nickname: "Sans mot de passe",
+    },
+  });
+  expect(missing.status()).toBe(401);
+  const wrong = await c.request.post("/api/game?as=admin", {
+    headers: { Origin: origin },
+    data: {
+      id: crypto.randomUUID(),
+      action: "join",
+      nickname: "Mauvais mot de passe",
+      password: "incorrect",
+    },
+  });
+  expect(wrong.status()).toBe(401);
   for (const role of ["admin", "marlene"]) {
     const page = await c.newPage();
     await page.goto(`/${role}`);
-    await expect(page.locator('input[type="password"]')).toHaveCount(0);
+    await expect(page.locator('input[type="password"]')).toHaveCount(
+      role === "admin" ? 1 : 0,
+    );
+    if (role === "admin")
+      await page
+        .getByLabel("Mot de passe administrateur")
+        .fill("admin-test-only");
     await page
       .getByLabel("Ton petit nom")
       .fill(`${role} ${crypto.randomUUID().slice(0, 8)}`);

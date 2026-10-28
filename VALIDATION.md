@@ -1,7 +1,7 @@
 # Verification record
 
 - TypeScript source check: passed.
-- 36 engine tests + 5 database integration tests: passed (41 total).
+- 36 engine tests + 5 database integration tests + 3 administrator-authentication tests: passed (44 total).
 - Database integration uses real SQLite migrations and triggers, including immutable score events, session persistence, competing winners and a 32-phone concurrent join burst.
 - Full browser game against the compiled Cloudflare Worker: passed through all 19 seeded rounds using independent host, Marlène, two guest and projector browser sessions.
 - Actual pointer drawing, private drawing storage/retrieval, anonymous voting, duplicate vote rejection, reconnect, hidden answer keys and concurrent first-correct requests: passed.
@@ -16,4 +16,6 @@ Supabase migration/RLS tests are provided but were not executed against an exter
 
 Local E2E names, audio tone and test image are fixtures, not personal facts about Marlène and not deployed runtime data. The hosted party is initialized separately on first name entry with the original unconfirmed seed bank.
 
-Name-only entry: passwords and room-code entry removed for all three roles. Tests cover concurrent duplicate names, cross-role collisions, same-browser reconnect and release on sign-out.
+Guest/Marlène entry is name-only; host/admin entry additionally verifies its server-configured password. Room-code entry is removed for people joining. Tests cover concurrent duplicate names, cross-role collisions, same-browser reconnect and release on sign-out.
+
+Admin password: tested missing/incorrect password rejection, invalidation of legacy name-only sessions, identity-preserving reauthentication, and guest/Marlène sessions without passwords.

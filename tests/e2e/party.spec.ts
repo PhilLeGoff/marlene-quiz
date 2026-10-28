@@ -56,6 +56,7 @@ test("complete multiplayer game: all answer types, secrecy, real race, anonymous
   const initial = await state(host.request);
   const runId = crypto.randomUUID().slice(0, 8);
   await hp.getByLabel("Ton petit nom").fill(`Hôte ${runId}`);
+  await hp.getByLabel("Mot de passe administrateur").fill("admin-test-only");
   await hp.getByRole("button", { name: "Ouvrir les coulisses" }).click();
   await expect(
     hp.getByRole("button", { name: "Inviter les copains" }),

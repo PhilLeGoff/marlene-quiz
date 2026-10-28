@@ -13,9 +13,9 @@ npm run db:local
 npm run dev -- --host 127.0.0.1 --port 3005
 ```
 
-Open `http://127.0.0.1:3005/` and enter a name. No email, password, installation key or room code is required. The first successful entry creates the party and seeds the original question bank atomically. Existing parties are preserved.
+Open `http://127.0.0.1:3005/` and enter a name. Guests need no email, password, installation key or room code. The first successful entry creates the party and seeds the original question bank atomically. Existing parties are preserved.
 
-All roles enter by name: `/` for guests, `/admin` for the host and `/marlene` for Marlène. Anyone can choose those role pages; the selected role determines the available controls. Names are unique across roles, ignoring accents, casing and repeated spaces. A duplicate name from another browser is refused. The same browser retains its opaque HttpOnly session and can reconnect. Signing out releases that identity's name. Host/star identities are not added to the guest leaderboard unless they also join as a guest.
+Guests enter their name on `/`; Marlène does the same on `/marlene`. The host enters a name and the administrator password on `/admin`. Set that password in the server-only `ADMIN_PASSWORD` environment variable. Names are unique across roles, ignoring accents, casing and repeated spaces. A duplicate name from another browser is refused. The same browser retains its opaque HttpOnly session and can reconnect. Signing out releases that identity's name. For local Cloudflare development place `ADMIN_PASSWORD` in an ignored `.dev.vars`; standard Next.js uses ignored `.env.local`. Host/star identities are not added to the guest leaderboard unless they also join as a guest.
 
 The room code remains visible for identifying the projector and generating invitation links, but is not required to join the game.
 
@@ -54,7 +54,7 @@ There is intentionally one party per deployment. The aggregate approach is desig
 
 ## Security
 
-No game passwords are used. Random opaque session tokens are hashed in persistent server state. Cookies are HttpOnly, SameSite=Lax and Secure on HTTPS. Name reservation is checked inside the atomic CAS transaction, so simultaneous requests for the same name yield one success and one duplicate-name response. Existing password hashes are cleared when the updated entry flow is used. Every game mutation continues to validate session, selected role, phase, timing and input. Roles are self-selected through their entry pages; this party flow intentionally does not verify a person's real-world identity.
+Only the host/admin role requires a password, supplied by the server-only `ADMIN_PASSWORD` variable. Guests and Marlène remain name-only. Random opaque session tokens are hashed in persistent server state. Cookies are HttpOnly, SameSite=Lax and Secure on HTTPS. Name reservation is checked inside the atomic CAS transaction, so simultaneous requests for the same name yield one success and one duplicate-name response. Old name-only administrator sessions must authenticate with the password again; their reserved name and participant identity are preserved. Every game mutation continues to validate session, selected role, phase, timing and input. Marlène’s role remains self-selected through its entry page. Administrator sessions include a server-verified password proof; changing `ADMIN_PASSWORD` invalidates earlier admin sessions.
 
 Requests retain origin checks, bounded payloads, rate limits and idempotency IDs. Answer keys, media and submissions are still filtered by role and phase. Browser access to the database stays restricted by RLS. The published Site is shared publicly by link so guests do not encounter a hosting-account sign-in gate.
 
@@ -67,9 +67,9 @@ The checked-in manifest identifies this Site. Use the Sites plugin’s source/bu
 ### Vercel + Supabase
 
 1. Apply the Supabase migration using the SQL editor or `supabase db push`. Enable Realtime for the included revision table (the migration adds it to the standard publication). The `party-media` bucket stays private, without browser upload/read policies.
-2. Set `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` in Vercel. Keep the service role key server-only.
+2. Set `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` and `ADMIN_PASSWORD` in Vercel. Keep the service role key server-only.
 3. Set the build command to `npm run build:vercel`; the Worker entrypoint injects request-scoped Cloudflare bindings, while standard Next.js reads server environment variables. For a local Next build use `npm run build:vercel`. Standard output is `.next`; use `npm run start:vercel` to run it.
-4. Open `/admin`, enter your name, then share the party link. No installation password or key is required.
+4. Set `ADMIN_PASSWORD`, open `/admin`, enter your name and that password, then share the party link. Guests and Marlène enter by name only.
 
 Both the Cloudflare/Sites and standard Next.js production builds are verified locally. A live Supabase project and Vercel account were not provided; those external services require configuration and a deployment smoke test before use.
 

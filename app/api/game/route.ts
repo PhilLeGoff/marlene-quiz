@@ -1,5 +1,6 @@
 import {
   actor,
+  requireAdminPassword,
   boundedBody,
   hash,
   sameOrigin,
@@ -128,6 +129,11 @@ export async function POST(req: Request) {
     const role = roleOf(req);
     if (["join", "login", "setup"].includes(body.action)) {
       await rateLimit(`join:${await hash(ip)}`, 120);
+      let adminProof: string | undefined;
+      if (role === "admin") {
+        await rateLimit(`admin-auth:${await hash(ip)}`, 12);
+        adminProof = await requireAdminPassword(body.password);
+      }
       // Everyone can start or enter the party with a name. Initialization is race-safe.
       if (!(await readParty()))
         await insertParty(
@@ -145,7 +151,7 @@ export async function POST(req: Request) {
       const result = await mutate(async (p) => {
         const own = [];
         for (const r of ["guest", "admin", "marlene"] as const) {
-          const a = await actor(req, p, r);
+          const a = await actor(req, p, r, true);
           if (a?.playerId) own.push(a);
         }
         const matching = own.find(
@@ -172,7 +178,11 @@ export async function POST(req: Request) {
         for (const [oldKey, session] of Object.entries(next.sessions))
           if (session.role === role && session.playerId === joined.playerId)
             delete next.sessions[oldKey];
-        next.sessions[key] = { ...joined, expires: Date.now() + 2592000000 };
+        next.sessions[key] = {
+          ...joined,
+          expires: Date.now() + 2592000000,
+          ...(adminProof ? { adminProof } : {}),
+        };
         return next;
       });
       return json(enrich(view(result.party, joined, result.version)), 200, {

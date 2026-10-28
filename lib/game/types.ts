@@ -95,7 +95,12 @@ export type ScoreEvent = {
   adjustment: boolean;
   generation: number;
 };
-export type Session = { role: Role; playerId?: string; expires: number };
+export type Session = {
+  role: Role;
+  playerId?: string;
+  expires: number;
+  adminProof?: string;
+};
 export type Party = {
   room: string;
   phase: Phase;

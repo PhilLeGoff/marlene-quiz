@@ -1,5 +1,6 @@
 import type { Actor, Party, Role } from "./types";
 import { GameError } from "./engine";
+import { config } from "./store";
 const enc = new TextEncoder();
 const hex = (bytes: ArrayBuffer) =>
   Array.from(new Uint8Array(bytes), (x) =>
@@ -8,6 +9,22 @@ const hex = (bytes: ArrayBuffer) =>
 export const token = () => crypto.randomUUID() + crypto.randomUUID();
 export async function hash(value: string) {
   return hex(await crypto.subtle.digest("SHA-256", enc.encode(value)));
+}
+export async function requireAdminPassword(value: unknown) {
+  const secret = config("ADMIN_PASSWORD");
+  if (!secret)
+    throw new GameError(
+      "Le mot de passe administrateur doit être configuré sur le serveur.",
+      503,
+    );
+  const expected = await hash(secret),
+    given = await hash(typeof value === "string" ? value : "");
+  let difference = 0;
+  for (let i = 0; i < expected.length; i++)
+    difference |= expected.charCodeAt(i) ^ given.charCodeAt(i);
+  if (difference !== 0)
+    throw new GameError("Mot de passe administrateur incorrect.", 401);
+  return expected;
 }
 export function cookie(req: Request, role: Role) {
   return req.headers
@@ -21,6 +38,7 @@ export async function actor(
   req: Request,
   p: Party,
   role: Role = "guest",
+  identityOnly = false,
 ): Promise<Actor | null> {
   const t = cookie(req, role);
   if (!t) return null;
@@ -28,6 +46,10 @@ export async function actor(
   if (!s || s.expires < Date.now() || s.role !== role) return null;
   if (!s.playerId || !p.players.some((x) => x.id === s.playerId && x.active))
     return null;
+  if (role === "admin" && !identityOnly) {
+    const secret = config("ADMIN_PASSWORD");
+    if (!secret || s.adminProof !== (await hash(secret))) return null;
+  }
   return { role: s.role, playerId: s.playerId };
 }
 export function sessionCookie(

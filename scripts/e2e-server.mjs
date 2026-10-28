@@ -1,9 +1,23 @@
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, readdirSync, rmSync } from "node:fs";
+import {
+  existsSync,
+  readdirSync,
+  rmSync,
+  readFileSync,
+  writeFileSync,
+  mkdirSync,
+} from "node:fs";
 const state = ".wrangler/e2e-state";
-const config = "dist/server/wrangler.json";
-if (!existsSync(config))
+const builtConfig = "dist/server/wrangler.json";
+const config = ".sites-runtime/e2e-wrangler.json";
+if (!existsSync(builtConfig))
   throw new Error("Exécuter npm run build avant les tests navigateur.");
+mkdirSync(".sites-runtime", { recursive: true });
+const settings = JSON.parse(readFileSync(builtConfig, "utf8"));
+settings.main = new URL("../dist/server/index.js", import.meta.url).pathname;
+settings.assets.directory = new URL("../dist/client", import.meta.url).pathname;
+settings.vars = { ...settings.vars, ADMIN_PASSWORD: "admin-test-only" };
+writeFileSync(config, JSON.stringify(settings));
 // This directory belongs only to Playwright; never touch the live preview state.
 rmSync(state, { recursive: true, force: true });
 const cli = [

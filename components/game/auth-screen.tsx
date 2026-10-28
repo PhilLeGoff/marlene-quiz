@@ -9,7 +9,8 @@ export function AuthScreen({
   c: PartyClient;
   star?: boolean;
 }) {
-  const [nickname, setNickname] = useState("");
+  const [nickname, setNickname] = useState(""),
+    [password, setPassword] = useState("");
   return (
     <div className="auth-card">
       <div className="panel">
@@ -19,13 +20,17 @@ export function AuthScreen({
         </span>
         <h1>{star ? "La reine est arrivée." : "À toi de mener la danse."}</h1>
         <p>
-          Entre ton nom et rejoins la fête. Si ce nom est déjà pris, choisis-en
-          un autre.
+          {star
+            ? "Entre ton nom et rejoins la fête. Si ce nom est déjà pris, choisis-en un autre."
+            : "Entre ton nom et le mot de passe de l’administration pour ouvrir les coulisses."}
         </p>
         <form
           onSubmit={async (e) => {
             e.preventDefault();
-            await c.command("join", { nickname });
+            await c.command("join", {
+              nickname,
+              ...(!star ? { password } : {}),
+            });
           }}
         >
           <label>
@@ -40,6 +45,19 @@ export function AuthScreen({
               onChange={(e) => setNickname(e.target.value)}
             />
           </label>
+          {!star && (
+            <label>
+              Mot de passe administrateur
+              <input
+                type="password"
+                name="password"
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </label>
+          )}
           <button
             disabled={c.busy}
             className={`btn ${star ? "lilac" : "primary"} wide`}
