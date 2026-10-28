@@ -1,5 +1,5 @@
 import { test, expect, type APIRequestContext } from "@playwright/test";
-const origin = "http://127.0.0.1:3005";
+const origin = process.env.TEST_BASE_URL ?? "http://127.0.0.1:3105";
 async function enter(ctx: APIRequestContext, role: string, nickname: string) {
   return ctx.post(`/api/game?as=${role}`, {
     headers: { Origin: origin },

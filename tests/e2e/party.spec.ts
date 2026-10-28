@@ -7,7 +7,7 @@ async function api(
   status = 200,
 ) {
   const r = await ctx.post(`/api/game?as=${as}`, {
-    headers: { Origin: "http://127.0.0.1:3005" },
+    headers: { Origin: process.env.TEST_BASE_URL ?? "http://127.0.0.1:3105" },
     data: { id: crypto.randomUUID(), action, ...values },
   });
   const data = await r.json();
@@ -67,7 +67,7 @@ test("complete multiplayer game: all answer types, secrecy, real race, anonymous
   await api(star.request, "marlene", "join", { nickname: `Marlène ${runId}` });
   await api(star.request, "marlene", "consent");
   const tone = await host.request.post("/api/media", {
-    headers: { Origin: "http://127.0.0.1:3005" },
+    headers: { Origin: process.env.TEST_BASE_URL ?? "http://127.0.0.1:3105" },
     multipart: {
       file: { name: "test-tone.wav", mimeType: "audio/wav", buffer: wav() },
     },
@@ -75,7 +75,7 @@ test("complete multiplayer game: all answer types, secrecy, real race, anonymous
   expect(tone.ok()).toBeTruthy();
   const audio = (await tone.json()).url;
   const image = await host.request.post("/api/media", {
-    headers: { Origin: "http://127.0.0.1:3005" },
+    headers: { Origin: process.env.TEST_BASE_URL ?? "http://127.0.0.1:3105" },
     multipart: {
       file: {
         name: "authorized-test.png",
@@ -208,7 +208,9 @@ test("complete multiplayer game: all answer types, secrecy, real race, anonymous
       const results = await Promise.all(
         [guest.request, bob.request].map((ctx) =>
           ctx.post("/api/game?as=guest", {
-            headers: { Origin: "http://127.0.0.1:3005" },
+            headers: {
+              Origin: process.env.TEST_BASE_URL ?? "http://127.0.0.1:3105",
+            },
             data: {
               id: crypto.randomUUID(),
               action: "submit",
