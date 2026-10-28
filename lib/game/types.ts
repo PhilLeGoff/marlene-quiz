@@ -1,0 +1,192 @@
+export type Role = "admin" | "marlene" | "guest" | "present";
+export type Kind =
+  | "choice"
+  | "multi"
+  | "number"
+  | "text"
+  | "reveal"
+  | "blind"
+  | "outfit"
+  | "pin"
+  | "photo"
+  | "creative"
+  | "pictionary"
+  | "drawing";
+export type Phase =
+  | "lobby"
+  | "next_round"
+  | "question_open"
+  | "submissions_closed"
+  | "reveal"
+  | "leaderboard"
+  | "finished"
+  | "waiting_for_marlene_answer"
+  | "drawing_open"
+  | "drawing_submissions_closed"
+  | "voting_open"
+  | "winner_revealed"
+  | "pictionary_live"
+  | "pictionary_winner";
+export type Point = { x: number; y: number };
+export type Stroke = {
+  id: string;
+  color: string;
+  size: number;
+  points: Point[];
+};
+export type Question = {
+  id: string;
+  source: number;
+  title: string;
+  kind: Kind;
+  options: string[];
+  generated: string[];
+  enabled: boolean;
+  confirmed: boolean;
+  duration: number;
+  tolerance: number;
+  unit: string;
+  note: string;
+  aliases: string[];
+  bonus: number;
+  attempts: number;
+  sensitive: boolean;
+  media: string[];
+  clipStart: number;
+  clipEnd: number;
+};
+export type Secret = {
+  answers?: string[];
+  number?: number;
+  text?: string;
+  aliases?: string[];
+  prompt?: string;
+  updatedAt?: number;
+};
+export type Participant = {
+  id: string;
+  nickname: string;
+  avatar: number;
+  joinedAt: number;
+  active: boolean;
+};
+export type Submission = {
+  id: string;
+  playerId: string;
+  value: string | string[] | number | Stroke[];
+  at: number;
+  elapsed: number;
+  moderated: boolean;
+  correct?: boolean;
+  attempts?: number;
+  drawingId?: string;
+};
+export type ScoreEvent = {
+  id: string;
+  roundId: string;
+  questionId: string;
+  playerId: string;
+  delta: number;
+  correct: boolean;
+  elapsed: number;
+  reason: string;
+  at: number;
+  adjustment: boolean;
+  generation: number;
+};
+export type Session = { role: Role; playerId?: string; expires: number };
+export type Party = {
+  room: string;
+  phase: Phase;
+  index: number;
+  roundId: string;
+  generation: number;
+  startedAt: number;
+  deadline: number;
+  questions: Question[];
+  secrets: Record<string, Secret>;
+  players: Participant[];
+  submissions: Record<string, Submission[]>;
+  strokes: Stroke[];
+  winner?: string;
+  events: ScoreEvent[];
+  sessions: Record<string, Session>;
+  requests: string[];
+  credentials: { admin: string; marlene: string };
+  consent: boolean;
+  consentAt: number;
+  revealAllowed: boolean;
+  audio: { playing: boolean; at: number; offset: number };
+  createdAt: number;
+};
+export type Actor = { role: Role; playerId?: string };
+export type Command = { id: string; action: string; [key: string]: unknown };
+export type RankedPlayer = Participant & {
+  score: number;
+  correctCount: number;
+  correctTime: number;
+  rank: number;
+};
+export type View = {
+  initialized: boolean;
+  role: Role | null;
+  playerId?: string;
+  room: string;
+  version: number;
+  phase: Phase;
+  index: number;
+  total: number;
+  roundId: string;
+  deadline: number;
+  players: RankedPlayer[];
+  question: Question | null;
+  submitted: boolean;
+  mySubmission?: Submission;
+  submissionCount: number;
+  gallery: {
+    id: string;
+    strokes: Stroke[];
+    drawingUrl?: string;
+    artist?: string;
+  }[];
+  strokes: Stroke[];
+  winner?: string;
+  result?: { delta: number; correct: boolean; reason: string };
+  answer?: Secret;
+  questions?: Question[];
+  secrets?: Record<string, Secret>;
+  submissions?: Submission[];
+  events?: ScoreEvent[];
+  consent?: boolean;
+  revealAllowed?: boolean;
+  audio: Party["audio"];
+  realtime?: { url: string; key: string };
+  serverTime: number;
+  setupAvailable?: boolean;
+};
+export const OPEN: Phase[] = [
+  "question_open",
+  "drawing_open",
+  "pictionary_live",
+];
+export const REVEALED: Phase[] = [
+  "reveal",
+  "leaderboard",
+  "finished",
+  "winner_revealed",
+  "pictionary_winner",
+];
+export const kindLabels: Record<Kind, string> = {
+  choice: "Quiz",
+  multi: "Plusieurs réponses",
+  number: "À un chiffre près",
+  text: "Réponse libre",
+  reveal: "Marlène dévoile",
+  blind: "Blind test",
+  outfit: "Le pyjama parfait",
+  pin: "Code mystère",
+  photo: "Qui est qui ?",
+  creative: "Carte blanche",
+  pictionary: "Pictionary",
+  drawing: "Concours de dessin",
+};

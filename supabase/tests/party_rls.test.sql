@@ -1,0 +1,13 @@
+begin;
+create extension if not exists pgtap with schema extensions;
+select plan(8);
+select ok((select relrowsecurity from pg_class where oid='public.parties'::regclass),'parties RLS enabled');
+select ok((select relrowsecurity from pg_class where oid='public.score_events'::regclass),'events RLS enabled');
+select ok(not has_table_privilege('anon','public.parties','SELECT'),'anonymous cannot read answers');
+select ok(not has_table_privilege('authenticated','public.parties','SELECT'),'authenticated cannot read answers');
+select ok(not has_table_privilege('anon','public.parties','UPDATE'),'anonymous cannot mutate state');
+select ok(not has_function_privilege('anon','public.commit_party(bigint,jsonb)','EXECUTE'),'anonymous cannot call scoring RPC');
+select ok(has_table_privilege('anon','public.party_revisions','SELECT'),'revision-only realtime is readable');
+select ok(not (select public from storage.buckets where id='party-media'),'media bucket is private');
+select * from finish();
+rollback;

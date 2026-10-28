@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1793203884004,
+      "tag": "0000_talented_meggan",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1793204121235,
+      "tag": "0001_misty_karen_page",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1793204122000,
+      "tag": "0002_score_audit",
+      "breakpoints": true
+    }
+  ]
+}
