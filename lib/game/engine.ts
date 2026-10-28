@@ -911,6 +911,7 @@ export function reduce(
         ["lobby", "finished"].includes(s.phase),
         "Supprime les manches avant la partie.",
       );
+      delete s.secrets[String(cmd.questionId)];
       s.questions = s.questions.filter((q) => q.id !== cmd.questionId);
       break;
     case "add": {

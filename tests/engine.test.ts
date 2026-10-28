@@ -149,6 +149,15 @@ describe("scoring and normalization", () => {
   });
 });
 describe("authorization and hidden answers", () => {
+  it("erases the private key when its question is deleted", () => {
+    let p = createParty("123456", { admin: "hash", marlene: "hash" }, 1000);
+    p = run(p, star, "consent");
+    p = run(p, star, "private", { questionId: "q11", number: 42 });
+    p = run(p, admin, "delete", { questionId: "q11" });
+    expect(p.secrets.q11).toBeUndefined();
+    expect(p.questions.some((q) => q.id === "q11")).toBe(false);
+  });
+
   it.each([
     "open",
     "close",
