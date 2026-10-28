@@ -258,6 +258,7 @@ test("complete multiplayer game: all answer types, secrecy, real race, anonymous
         gp.getByRole("heading", { name: "C’est dans la boîte !" }),
       ).toBeVisible();
       await api(bob.request, "guest", "submit", { value: strokes });
+      await expect(hp.locator(".submission-preview")).toHaveCount(2);
       await api(host.request, "admin", "close");
       live = await api(host.request, "admin", "reveal");
       const sv = await state(star.request, "marlene");

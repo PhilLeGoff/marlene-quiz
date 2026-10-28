@@ -2388,3 +2388,4 @@ dialog.native-modal::backdrop {
 }
 .feature-number{opacity:1;color:#665463}
 .auth-card p.notice{color:#51415d}
+.submission-preview{max-width:280px;margin:12px 0}

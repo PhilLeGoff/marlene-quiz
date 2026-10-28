@@ -40,6 +40,7 @@ import { EmptyParty } from "./art";
 import { QuestionEditor } from "./editor";
 import { PrivateForm } from "./private-form";
 import { Modal } from "./modal";
+import { DrawingCanvas, DrawingPreview } from "./canvas";
 import type { Question } from "@/lib/game/types";
 import { kindLabels, OPEN, REVEALED } from "@/lib/game/types";
 export function Admin() {
@@ -326,15 +327,23 @@ export function Admin() {
                           {sub.moderated ? " · Retirée" : ""}
                         </span>
                       </div>
-                      <div className="submission-value">
-                        {Array.isArray(sub.value) &&
-                        sub.value[0] &&
-                        typeof sub.value[0] === "object"
-                          ? "Un chef-d’œuvre attend son verdict."
-                          : Array.isArray(sub.value)
-                            ? sub.value.join(", ")
-                            : String(sub.value)}
-                      </div>
+                      {sub.drawingId ? (
+                        <div className="submission-preview">
+                          <DrawingPreview
+                            url={`/api/drawing?id=${sub.drawingId}`}
+                          />
+                        </div>
+                      ) : (
+                        <div className="submission-value">
+                          {Array.isArray(sub.value) &&
+                          sub.value[0] &&
+                          typeof sub.value[0] === "object"
+                            ? "Un chef-d’œuvre attend son verdict."
+                            : Array.isArray(sub.value)
+                              ? sub.value.join(", ")
+                              : String(sub.value)}
+                        </div>
+                      )}
                       {!sub.moderated && (
                         <div className="row">
                           {["text", "reveal"].includes(question?.kind ?? "") &&
