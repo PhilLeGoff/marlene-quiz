@@ -81,6 +81,19 @@ describe("seed bank", () => {
   });
 });
 describe("scoring and normalization", () => {
+  it("revokes score and tie-break credit for a moderated correct answer", () => {
+    let p = opened();
+    p = run(p, guest(), "submit", { value: ["Elle a fait pipi"] });
+    p = run(p, admin, "close");
+    p = run(p, admin, "reveal");
+    const sub = p.submissions[p.roundId][0];
+    p = run(p, admin, "moderate", { submissionId: sub.id });
+    const result = leaderboard(p).find((x) => x.id === "alice")!;
+    expect(result.score).toBe(0);
+    expect(result.correctCount).toBe(0);
+    expect(result.correctTime).toBe(0);
+    expect(p.events).toHaveLength(2);
+  });
   it("normalizes accents, punctuation, spaces and casing", () =>
     expect(normalize(" ÉLÉPHANT — rose !!! ")).toBe("elephantrose"));
   it("requires the exact set for multi select", () => {

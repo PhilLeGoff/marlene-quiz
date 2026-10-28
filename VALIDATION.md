@@ -1,7 +1,7 @@
 # Verification record
 
 - TypeScript source check: passed.
-- 33 engine tests + 5 database integration tests: passed (38 total).
+- 34 engine tests + 5 database integration tests: passed (39 total).
 - Database integration uses real SQLite migrations and triggers, including immutable score events, session persistence, competing winners and a 32-phone concurrent join burst.
 - Full browser game against the compiled Cloudflare Worker: passed through all 19 seeded rounds using independent host, Marlène, two guest and projector browser sessions.
 - Actual pointer drawing, private drawing storage/retrieval, anonymous voting, duplicate vote rejection, reconnect, hidden answer keys and concurrent first-correct requests: passed.

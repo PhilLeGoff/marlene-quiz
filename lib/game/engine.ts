@@ -59,13 +59,19 @@ export function leaderboard(s: Party): RankedPlayer[] {
       const events = s.events.filter(
         (e) => e.playerId === p.id && e.generation === s.generation,
       );
+      const revokedRounds = new Set(
+        events
+          .filter((e) => e.id.startsWith("moderate-"))
+          .map((e) => e.roundId),
+      );
+      const validCorrect = events.filter(
+        (e) => e.correct && !e.adjustment && !revokedRounds.has(e.roundId),
+      );
       return {
         ...p,
         score: events.reduce((v, e) => v + e.delta, 0),
-        correctCount: events.filter((e) => e.correct && !e.adjustment).length,
-        correctTime: events
-          .filter((e) => e.correct && !e.adjustment)
-          .reduce((v, e) => v + e.elapsed, 0),
+        correctCount: validCorrect.length,
+        correctTime: validCorrect.reduce((v, e) => v + e.elapsed, 0),
         rank: 0,
       };
     })
