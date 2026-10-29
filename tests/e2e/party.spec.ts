@@ -106,7 +106,7 @@ test("complete multiplayer game: all answer types, secrecy, real race, anonymous
   const values: Record<string, unknown> = {};
   for (const q of d.questions) {
     if (["choice", "multi", "outfit", "photo"].includes(q.kind)) {
-      const answers = q.kind === "outfit" ? q.options : [q.options[0]];
+      const answers = d.secrets[q.id]?.answers ?? [q.options[0]];
       await api(star.request, "marlene", "private", {
         questionId: q.id,
         answers,
@@ -119,7 +119,7 @@ test("complete multiplayer game: all answer types, secrecy, real race, anonymous
       });
       values[q.id] = 168;
     } else if (q.kind === "blind") {
-      values[q.id] = d.secrets[q.id].text;
+      values[q.id] = q.options.length ? d.secrets[q.id].answers : d.secrets[q.id].text;
     } else if (q.kind === "pin") {
       await api(host.request, "admin", "private", {
         questionId: q.id,
@@ -182,6 +182,7 @@ test("complete multiplayer game: all answer types, secrecy, real race, anonymous
     if (index === 0) {
       await expect(gp.getByRole("heading", { name: q.title })).toBeVisible();
       await gp.getByRole("button", { name: "Philippe", exact: false }).click();
+      await gp.getByRole("button", { name: "Simone", exact: false }).click();
       await gp.getByRole("button", { name: "Valider mon choix" }).click();
       await expect(
         gp.getByRole("heading", { name: "C’est dans la boîte !" }),

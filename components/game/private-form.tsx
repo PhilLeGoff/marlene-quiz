@@ -19,9 +19,10 @@ export function PrivateForm({
     [aliases, setAliases] = useState(secret?.aliases?.join("\n") ?? ""),
     [answers, setAnswers] = useState(secret?.answers ?? []),
     [saved, setSaved] = useState(false);
-  const options = ["choice", "multi", "outfit", "photo"].includes(q.kind);
+  const options = ["choice", "multi", "outfit", "photo"].includes(q.kind) || (q.kind === "blind" && q.options.length > 0);
   const isDrawing = q.kind === "drawing";
   const isNum = q.kind === "number" || q.sensitive;
+  if(q.kind==='creative')return <section className="notice">Aucune bonne réponse à préparer : les invités inventent leurs excuses et Marlène choisit sa préférée au moment du vote.</section>;
   const prepared = (q.confirmed || saved) && (secret?.number !== undefined || !!secret?.text || !!secret?.answers?.length || !!secret?.prompt);
   if (prepared && !editing) return (
     <section className="secret-form">
@@ -69,13 +70,13 @@ export function PrivateForm({
           {q.options.map((v) => (
             <label key={v} className="checkbox-label">
               <input
-                type={q.kind === "choice" ? "radio" : "checkbox"}
+                type={q.kind === "choice" || q.kind === "blind" ? "radio" : "checkbox"}
                 name={`key-${q.id}`}
                 checked={answers.includes(v)}
                 onChange={() => {
                   setSaved(false);
                   setAnswers((old) =>
-                    q.kind === "choice"
+                    q.kind === "choice" || q.kind === "blind"
                       ? [v]
                       : old.includes(v)
                         ? old.filter((x) => x !== v)

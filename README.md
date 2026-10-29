@@ -87,3 +87,11 @@ E2E starts its own compiled Worker on port 3105 and initializes the isolated `.w
 The seed is in `lib/game/seed.ts`; the server-only name entry writes it atomically to whichever database is selected. `npm run seed:export` exports the bank to `db/seed.json` for review; it does not create a live party.
 
 Prepared answers remain private, are reused automatically and survive a new-party reset (except the optional sensitive answer, which is deliberately erased). Their forms collapse into an “already saved” summary with an edit action. Unknown personal answers are not guessed.
+
+## Préparation des réponses — notes fournies le 29 octobre 2026
+
+Les réponses suivantes sont préremplies et confirmées : Philippe **et** Simone ; France, Canada, Indonésie et Australie ; pipi **et** saut du balcon en culotte ; Nutsy = son cheval ; les trois chansons du blind test ; chaussettes + short + t-shirt ; métier de rêve = prof de plongée ; red flag = cotons-tiges usagés gardés dans une boîte. Les choix contiennent aussi des propositions pièges modifiables. Le blind test propose des cartes de réponses et nécessite toujours des extraits autorisés fournis par l’hôte.
+
+La mise à jour est appliquée une seule fois aux parties existantes, en conservant les joueurs, scores, médias et chronos. Une manche déjà ouverte/révélée n’est pas modifiée pendant son déroulement. Les modifications manuelles ultérieures sont conservées. Les valeurs absentes des notes (taille, temps d’écran, réponse au million…) restent à fournir une fois. Le défi créatif ne demande aucune bonne réponse personnelle. La manche intime reste facultative et désactivée sans consentement.
+
+À la demande de l’utilisateur, les modifications de cette mise à jour sont publiées sans exécution des tests, du lint ou d’un second build Next.js. Seule la compilation nécessaire au site hébergé est effectuée.

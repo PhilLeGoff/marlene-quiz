@@ -41,15 +41,16 @@ export function Answer({ data, c }: { data: View; c: PartyClient }) {
         Driiiing ! Le temps est écoulé. L’hôte prépare la suite.
       </p>
     );
+  const single = q.kind === "choice" || q.kind === "blind";
   const select = (v: string) =>
     setSelected((old) =>
-      q.kind === "choice"
+      single
         ? [v]
         : old.includes(v)
           ? old.filter((x) => x !== v)
           : [...old, v],
     );
-  if (["choice", "multi", "outfit", "photo"].includes(q.kind))
+  if (["choice", "multi", "outfit", "photo"].includes(q.kind) || (q.kind === "blind" && q.options.length > 0))
     return (
       <div>
         {q.kind === "outfit" && <Outfit selected={selected} />}
@@ -79,7 +80,7 @@ export function Answer({ data, c }: { data: View; c: PartyClient }) {
           ))}
         </div>
         <p className="answer-helper">
-          {q.kind === "choice"
+          {single
             ? "Une seule réponse. Fais confiance à ton instinct."
             : "Sélectionne toutes les bonnes réponses. Le compte doit être exact."}
         </p>

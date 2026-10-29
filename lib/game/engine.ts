@@ -39,7 +39,7 @@ export function correct(
     return typeof value === "number" && key.number !== undefined
       ? Math.abs(value - key.number) <= q.tolerance
       : null;
-  if (["multi", "outfit", "photo", "choice"].includes(q.kind)) {
+  if (["multi", "outfit", "photo", "choice"].includes(q.kind) || (q.kind === "blind" && q.options.length > 0)) {
     if (!key.answers?.length) return null;
     const values: unknown[] = Array.isArray(value) ? value : [value];
     return (
@@ -484,7 +484,7 @@ export function reduce(
             Math.abs(value) <= 1e9,
           "Entre un nombre valide.",
         );
-      else if (["choice", "multi", "outfit", "photo"].includes(q.kind)) {
+      else if (["choice", "multi", "outfit", "photo"].includes(q.kind) || (q.kind === "blind" && q.options.length > 0)) {
         must(
           Array.isArray(value) &&
             value.length <= q.options.length &&
@@ -494,7 +494,7 @@ export function reduce(
             new Set(value).size === value.length,
           "Choisis parmi les réponses proposées.",
         );
-        if (q.kind === "choice")
+        if (q.kind === "choice" || q.kind === "blind")
           must(value.length === 1, "Choisis une seule réponse.");
       } else
         must(
@@ -657,7 +657,7 @@ export function reduce(
           "Choix invalides.",
         );
         secret.answers = cmd.answers as string[];
-        if (target.kind === "choice")
+        if (target.kind === "choice" || target.kind === "blind")
           must(
             secret.answers.length === 1,
             "Une seule bonne réponse attendue.",

@@ -6,9 +6,9 @@
       "title": "Comment Marlène veut-elle appeler ses enfants ?",
       "kind": "multi",
       "options": [
-        "Philippe",
         "Simone",
         "Gaspard",
+        "Philippe",
         "Colette"
       ],
       "generated": [
@@ -16,11 +16,11 @@
         "Colette"
       ],
       "enabled": true,
-      "confirmed": false,
+      "confirmed": true,
       "duration": 45,
       "tolerance": 0,
       "unit": "",
-      "note": "Philippe et Simone sont fournis, sans clé confirmée. Gaspard et Colette sont des propositions générées et modifiables.",
+      "note": "Bonnes réponses fournies : Philippe et Simone. Gaspard et Colette sont des propositions pièges générées et modifiables.",
       "aliases": [],
       "bonus": 5,
       "attempts": 3,
@@ -36,17 +36,22 @@
       "kind": "multi",
       "options": [
         "France",
+        "Japon",
         "Canada",
-        "Indonésie",
-        "Australie"
+        "Australie",
+        "Portugal",
+        "Indonésie"
       ],
-      "generated": [],
+      "generated": [
+        "Japon",
+        "Portugal"
+      ],
       "enabled": true,
-      "confirmed": false,
+      "confirmed": true,
       "duration": 45,
       "tolerance": 0,
       "unit": "",
-      "note": "Les quatre pays ont été fournis. Confirmer lesquels sont corrects.",
+      "note": "Bonnes réponses fournies : France, Canada, Indonésie et Australie. Japon et Portugal sont des propositions pièges générées et modifiables.",
       "aliases": [],
       "bonus": 5,
       "attempts": 3,
@@ -59,7 +64,7 @@
       "id": "q3",
       "source": 3,
       "title": "Que s’est-il passé sur le balcon espagnol ?",
-      "kind": "choice",
+      "kind": "multi",
       "options": [
         "Elle a fait pipi",
         "Elle a dormi toute la nuit dehors",
@@ -68,11 +73,11 @@
       ],
       "generated": [],
       "enabled": true,
-      "confirmed": false,
+      "confirmed": true,
       "duration": 45,
       "tolerance": 0,
       "unit": "",
-      "note": "Réponse à confirmer par Marlène ou l’hôte.",
+      "note": "Deux bonnes réponses fournies : elle a fait pipi et elle a sauté du balcon en culotte.",
       "aliases": [],
       "bonus": 5,
       "attempts": 3,
@@ -97,11 +102,11 @@
       ],
       "generated": [],
       "enabled": true,
-      "confirmed": false,
+      "confirmed": true,
       "duration": 45,
       "tolerance": 0,
       "unit": "",
-      "note": "Réponse à confirmer par Marlène ou l’hôte.",
+      "note": "Bonne réponse fournie : son cheval.",
       "aliases": [],
       "bonus": 5,
       "attempts": 3,
@@ -136,8 +141,17 @@
       "source": 6,
       "title": "Blind test 🎵 — 1/3",
       "kind": "blind",
-      "options": [],
-      "generated": [],
+      "options": [
+        "Jive Me — 120 BPM",
+        "Noir Désir — Marlène",
+        "Indochine — L’Aventurier",
+        "Måneskin — L’altra dimensione"
+      ],
+      "generated": [
+        "Jive Me — 120 BPM",
+        "Indochine — L’Aventurier",
+        "Måneskin — L’altra dimensione"
+      ],
       "enabled": true,
       "confirmed": true,
       "duration": 35,
@@ -157,8 +171,17 @@
       "source": 6,
       "title": "Blind test 🎵 — 2/3",
       "kind": "blind",
-      "options": [],
-      "generated": [],
+      "options": [
+        "Noir Désir — Marlène",
+        "Téléphone — Cendrillon",
+        "Måneskin — L’altra dimensione",
+        "Jive Me — 120 BPM"
+      ],
+      "generated": [
+        "Noir Désir — Marlène",
+        "Téléphone — Cendrillon",
+        "Jive Me — 120 BPM"
+      ],
       "enabled": true,
       "confirmed": true,
       "duration": 35,
@@ -178,8 +201,17 @@
       "source": 6,
       "title": "Blind test 🎵 — 3/3",
       "kind": "blind",
-      "options": [],
-      "generated": [],
+      "options": [
+        "Louise Attaque — J’t’emmène au vent",
+        "Måneskin — L’altra dimensione",
+        "Jive Me — 120 BPM",
+        "Noir Désir — Marlène"
+      ],
+      "generated": [
+        "Louise Attaque — J’t’emmène au vent",
+        "Måneskin — L’altra dimensione",
+        "Noir Désir — Marlène"
+      ],
       "enabled": true,
       "confirmed": true,
       "duration": 35,
@@ -201,16 +233,21 @@
       "kind": "outfit",
       "options": [
         "Chaussettes",
+        "Pyjama intégral",
         "T-shirt",
+        "Bonnet de nuit",
         "Short"
       ],
-      "generated": [],
+      "generated": [
+        "Pyjama intégral",
+        "Bonnet de nuit"
+      ],
       "enabled": true,
       "confirmed": true,
       "duration": 45,
       "tolerance": 0,
       "unit": "",
-      "note": "Combinaison fournie : chaussettes + short + t-shirt.",
+      "note": "Bonne combinaison fournie : chaussettes + short + t-shirt. Pyjama intégral et bonnet de nuit sont des propositions pièges modifiables.",
       "aliases": [],
       "bonus": 5,
       "attempts": 3,
@@ -277,11 +314,11 @@
       ],
       "generated": [],
       "enabled": true,
-      "confirmed": false,
+      "confirmed": true,
       "duration": 45,
       "tolerance": 0,
       "unit": "",
-      "note": "Réponse à confirmer par Marlène ou l’hôte.",
+      "note": "Bonne réponse fournie : prof de plongée.",
       "aliases": [],
       "bonus": 5,
       "attempts": 3,
@@ -340,15 +377,18 @@
       "options": [
         "Garder ses cotons-tiges usagés dans une boîte",
         "Faire cuire ses pâtes dans du lait",
-        "Ne pas payer le resto"
+        "Ne pas payer le resto",
+        "Dire « comme même » avec beaucoup trop de conviction"
       ],
-      "generated": [],
+      "generated": [
+        "Dire « comme même » avec beaucoup trop de conviction"
+      ],
       "enabled": true,
-      "confirmed": false,
+      "confirmed": true,
       "duration": 45,
       "tolerance": 0,
       "unit": "",
-      "note": "Réponse à confirmer par Marlène ou l’hôte.",
+      "note": "Bonne réponse fournie : garder ses cotons-tiges usagés dans une boîte. La quatrième proposition est un piège généré et modifiable.",
       "aliases": [],
       "bonus": 5,
       "attempts": 3,
@@ -443,6 +483,41 @@
     }
   ],
   "secrets": {
+    "q1": {
+      "answers": [
+        "Philippe",
+        "Simone"
+      ]
+    },
+    "q2": {
+      "answers": [
+        "France",
+        "Canada",
+        "Indonésie",
+        "Australie"
+      ]
+    },
+    "q3": {
+      "answers": [
+        "Elle a fait pipi",
+        "Elle a sauté du balcon en culotte"
+      ]
+    },
+    "q4": {
+      "answers": [
+        "Son cheval"
+      ]
+    },
+    "q10": {
+      "answers": [
+        "Prof de plongée"
+      ]
+    },
+    "q13": {
+      "answers": [
+        "Garder ses cotons-tiges usagés dans une boîte"
+      ]
+    },
     "q7": {
       "answers": [
         "Chaussettes",
@@ -451,6 +526,9 @@
       ]
     },
     "q6a": {
+      "answers": [
+        "Noir Désir — Marlène"
+      ],
       "text": "Marlène",
       "aliases": [
         "Noir Désir",
@@ -458,14 +536,22 @@
       ]
     },
     "q6b": {
+      "answers": [
+        "Måneskin — L’altra dimensione"
+      ],
       "text": "L’altra dimensione",
       "aliases": [
         "Måneskin",
         "L'altra dimensione",
-        "Maneskin altra dimensione"
+        "Maneskin altra dimensione",
+        "Måneskin L'altra dimensione",
+        "L'altra dimesione"
       ]
     },
     "q6c": {
+      "answers": [
+        "Jive Me — 120 BPM"
+      ],
       "text": "120 BPM",
       "aliases": [
         "Jive Me",

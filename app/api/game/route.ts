@@ -22,7 +22,7 @@ import {
   validateStrokes,
   nicknameKey,
 } from "@/lib/game/engine";
-import { createParty } from "@/lib/game/seed";
+import { createParty, applySuppliedAnswers } from "@/lib/game/seed";
 import type { Actor, Command, Role } from "@/lib/game/types";
 export const dynamic = "force-dynamic";
 const json = (
@@ -58,6 +58,7 @@ function fail(e: unknown) {
 export async function GET(req: Request) {
   try {
     let current = await readParty();
+    if(current&&applySuppliedAnswers(current.party)!==current.party)current=await mutate(p=>applySuppliedAnswers(p));
     if (
       current &&
       current.party.consent &&
@@ -144,6 +145,7 @@ export async function POST(req: Request) {
         freshId = crypto.randomUUID();
       let joined: Actor = { role, playerId: freshId };
       const result = await mutate(async (p) => {
+        p=applySuppliedAnswers(p);
         const own = [];
         for (const r of ["guest", "admin", "marlene"] as const) {
           const a = await actor(req, p, r, true);
@@ -237,6 +239,7 @@ export async function POST(req: Request) {
       );
     }
     const result = await mutate(async (p) => {
+        p=applySuppliedAnswers(p);
       const live = await actor(req, p, role);
       if (!live) throw new GameError("Session expirée.", 401);
       const next = reduce(p, live, body);

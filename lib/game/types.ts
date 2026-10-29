@@ -102,6 +102,7 @@ export type Session = {
   adminProof?: string;
 };
 export type Party = {
+  questionPresetVersions?: Record<string,string>;
   room: string;
   phase: Phase;
   index: number;
