@@ -54,7 +54,6 @@ export function AppShell({
               )}{" "}
               {c.connected ? "En direct" : "Reconnexion…"}
             </span>
-            {c.data?.room && <span className="room-badge">{c.data.room}</span>}
             {c.data?.role && role !== "present" && (
               <button
                 className="icon-button"

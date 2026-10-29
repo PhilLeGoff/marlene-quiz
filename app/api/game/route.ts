@@ -74,12 +74,7 @@ export async function GET(req: Request) {
     if (!current) return json({ initialized: false });
     let a = await actor(req, current.party, roleOf(req));
     const url = new URL(req.url);
-    if (
-      !a &&
-      url.searchParams.get("present") === "1" &&
-      url.searchParams.get("room") === current.party.room
-    )
-      a = { role: "present" };
+    if (url.searchParams.get("present") === "1") a = { role: "present" };
     const data = view(current.party, a, current.version);
     if (
       current.party.questions[current.party.index]?.kind === "drawing" &&

@@ -17,19 +17,9 @@ import {
 import { DrawingCanvas } from "./canvas";
 import { OPEN, REVEALED } from "@/lib/game/types";
 export function Present() {
-  const [room, setRoom] = useState(""),
-    [input, setInput] = useState(""),
-    [origin, setOrigin] = useState("");
-  const c = useParty("present", room),
-    d = c.data;
-  useEffect(() => {
-    setOrigin(location.origin);
-    const r = new URLSearchParams(location.search).get("room");
-    if (r) {
-      setRoom(r);
-      setInput(r);
-    }
-  }, []);
+  const [origin, setOrigin] = useState("");
+  const c = useParty("present"), d = c.data;
+  useEffect(() => { setOrigin(location.origin); }, []);
   return (
     <div className="presentation">
       <header>
@@ -42,7 +32,6 @@ export function Present() {
             />{" "}
             {d?.players?.length ?? 0} invités
           </span>
-          {room && <span className="room-badge">{room}</span>}
           <button
             className="icon-button"
             aria-label="Passer en plein écran"
@@ -61,51 +50,19 @@ export function Present() {
             {c.error}
           </p>
         )}
-        {!room ? (
-          <div className="auth-card panel">
-            <span className="pill lilac">
-              <Monitor size={16} /> LE GRAND ÉCRAN
-            </span>
-            <h1 style={{ fontSize: 35, margin: "20px 0" }}>
-              Toute la fête, en grand.
-            </h1>
-            <form
-              className="stack"
-              onSubmit={(e) => {
-                e.preventDefault();
-                setRoom(input);
-                history.replaceState(null, "", `/present?room=${input}`);
-              }}
-            >
-              <label>
-                Code de la fête
-                <input
-                  required
-                  inputMode="numeric"
-                  pattern="[0-9]{6}"
-                  maxLength={6}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value.replace(/\D/g, ""))}
-                />
-              </label>
-              <button className="btn primary">
-                Afficher la fête <ArrowRight size={18} />
-              </button>
-            </form>
-          </div>
-        ) : c.loading ? (
+        {c.loading ? (
           <Loading />
         ) : !d?.role ? (
           <EmptyParty
-            title="La salle se fait désirer."
-            text="Vérifie le code de la fête. La projection se connectera automatiquement."
+            title="La fête se prépare…"
+            text="La projection se connectera automatiquement dès que la fête sera ouverte."
           />
         ) : d.phase === "lobby" ? (
           <>
             <div className="projector-join">
               <div className="qr-wrap">
                 <QRCodeSVG
-                  value={`${origin}/?room=${room}`}
+                  value={`${origin}/`}
                   size={220}
                   bgColor="#ffffff"
                   fgColor="#392938"
@@ -122,7 +79,6 @@ export function Present() {
                 <p className="muted">
                   Scanne, entre ton nom et rejoins la fête.
                 </p>
-                <div className="projector-code">{room}</div>
               </div>
             </div>
             <PlayerBubbles data={d} />

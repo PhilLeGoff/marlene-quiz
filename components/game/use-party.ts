@@ -9,7 +9,7 @@ export function useParty(role: Role = "guest", room = "") {
     [connected, setConnected] = useState(true);
   const state = useRef<View | null>(null),
     pending = useRef(false);
-  const endpoint = `/api/game?as=${role}${role === "present" ? `&present=1&room=${encodeURIComponent(room)}` : ""}`;
+  const endpoint = `/api/game?as=${role}${role === "present" ? "&present=1" : ""}`;
   const apply = useCallback((v: View) => {
     setData((old) => {
       if (old && old.version > v.version) return old;
@@ -35,7 +35,7 @@ export function useParty(role: Role = "guest", room = "") {
     if (pending.current) return;
     pending.current = true;
     try {
-      const cursor = state.current?.strokes.at(-1)?.id ?? "";
+      const cursor = state.current?.strokes?.at(-1)?.id ?? "";
       const r = await fetch(
         endpoint +
           `&cursor=${encodeURIComponent(cursor)}&round=${encodeURIComponent(state.current?.roundId ?? "")}`,

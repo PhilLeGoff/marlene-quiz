@@ -49,14 +49,13 @@ export function Admin() {
   const [tab, setTab] = useState("live"),
     [edit, setEdit] = useState<Question | null>(null),
     [reset, setReset] = useState(false),
-    [resetText, setResetText] = useState(""),
     [copied, setCopied] = useState(false),
     [adjustId, setAdjustId] = useState(""),
     [delta, setDelta] = useState(1),
     [reason, setReason] = useState(""),
     [deleteQ, setDeleteQ] = useState<Question | null>(null);
   async function copy() {
-    await navigator.clipboard.writeText(`${location.origin}/?room=${d?.room}`);
+    await navigator.clipboard.writeText(`${location.origin}/`);
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
   }
@@ -93,7 +92,7 @@ export function Admin() {
               </button>
               <a
                 className="btn small lilac"
-                href={`/present?room=${d.room}`}
+                href="/present"
                 target="_blank"
                 rel="noreferrer"
               >
@@ -102,10 +101,6 @@ export function Admin() {
             </div>
           </div>
           <div className="status-strip">
-            <div className="stat">
-              <b>{d.room}</b>
-              <span>Code de la fête</span>
-            </div>
             <div className="stat">
               <b>{d.players.length}</b>
               <span>Invités dans la place</span>
@@ -643,26 +638,16 @@ export function Admin() {
             >
               <h2>Une nouvelle tournée.</h2>
               <p>
-                Recopie le code de la fête pour remettre le classement à zéro.
+                Le classement sera remis à zéro. Les questions et leurs réponses enregistrées seront conservées.
               </p>
               <form
                 onSubmit={async (e) => {
                   e.preventDefault();
-                  if (await c.command("reset", { confirm: resetText })) {
+                  if (await c.command("reset", { confirm: d.room })) {
                     setReset(false);
-                    setResetText("");
                   }
                 }}
               >
-                <label>
-                  Code de la fête
-                  <input
-                    value={resetText}
-                    required
-                    onChange={(e) => setResetText(e.target.value)}
-                    inputMode="numeric"
-                  />
-                </label>
                 <button className="btn danger wide" style={{ marginTop: 20 }}>
                   Relancer une nouvelle partie
                 </button>

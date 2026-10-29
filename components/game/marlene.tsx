@@ -70,7 +70,7 @@ export function Marlene() {
                 {!current ? (
                   <EmptyParty
                     title="Bienvenue dans ton royaume."
-                    text="Profite de l’attente pour compléter tes réponses secrètes. L’hôte s’occupe du rythme."
+                    text="Les réponses préparées sont déjà mémorisées. Complète seulement celles qui manquent ; l’hôte s’occupe du rythme."
                   />
                 ) : (
                   <>
@@ -161,7 +161,7 @@ export function Marlene() {
                         text={
                           d.phase === "drawing_open"
                             ? "Tu pourras choisir ton dessin préféré lorsque l’hôte ouvrira le vote."
-                            : "Complète ta réponse à droite, puis laisse l’hôte préparer la révélation."
+                            : current.confirmed ? "Ta réponse est déjà enregistrée. Rien à ressaisir : l’hôte prépare la suite." : "Complète la réponse manquante à droite, puis laisse l’hôte préparer la révélation."
                         }
                       />
                     )}
@@ -265,7 +265,7 @@ export function Marlene() {
               </label>
               {q && (
                 <div style={{ marginTop: 20 }}>
-                  {q.note && <p className="question-note">{q.note}</p>}
+                  {q.note && (!q.confirmed || !q.note.startsWith("Réponse à confirmer")) && <p className="question-note">{q.note}</p>}
                   {q.sensitive && !d.consent ? (
                     <p className="notice">
                       Tu gardes le choix de passer cette manche.

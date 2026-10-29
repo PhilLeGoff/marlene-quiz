@@ -17,12 +17,12 @@ Open `http://127.0.0.1:3005/` and enter a name. Guests need no email, password, 
 
 Guests enter their name on `/`; Marlène does the same on `/marlene`. The host enters a name and the administrator password on `/admin`. Set that password in the server-only `ADMIN_PASSWORD` environment variable. Names are unique across roles, ignoring accents, casing and repeated spaces. A duplicate name from another browser is refused. The same browser retains its opaque HttpOnly session and can reconnect. Signing out releases that identity's name. For local Cloudflare development place `ADMIN_PASSWORD` in an ignored `.dev.vars`; standard Next.js uses ignored `.env.local`. Host/star identities are not added to the guest leaderboard unless they also join as a guest.
 
-The room code remains visible for identifying the projector and generating invitation links, but is not required to join the game.
+No room code is displayed or requested. `/present` connects directly to the current party; the join QR code opens the homepage.
 
 - `/admin`: question editor, ordering, media uploads, game controls, participation, moderation, manual grading and immutable score adjustments.
 - `/marlene`: separate login, private answers, drawing prompt, live Pictionary, anonymous final vote and sensitive-round consent.
 - `/play`: guest lobby, all answer types, touch drawing, results and rankings.
-- `/present?room=123456`: read-only large-screen view and join QR code. The host supplies the room code.
+- `/present`: read-only large-screen view and join QR code. No code is needed.
 
 ## Before the party
 
@@ -85,3 +85,5 @@ npm run build
 E2E starts its own compiled Worker on port 3105 and initializes the isolated `.wrangler/e2e-state` database and storage. It never reuses or modifies the normal preview on port 3005. Run `npm run build` first, then `npm run test:e2e`. Explicit external test targets require both `TEST_BASE_URL` and `TEST_ALLOW_EXTERNAL_MUTATIONS=1`; never target a real party. The complete-game test walks all 19 rounds with independent role sessions and checks drawing, scoring and first-winner races. Test media is an original sine tone and a one-pixel authorized fixture. Browser tests also cover name-only entry, duplicate-name races, reconnect, logout, responsive behavior and accessibility. Supabase RLS checks remain available under `supabase/tests` for a configured Supabase environment.
 
 The seed is in `lib/game/seed.ts`; the server-only name entry writes it atomically to whichever database is selected. `npm run seed:export` exports the bank to `db/seed.json` for review; it does not create a live party.
+
+Prepared answers remain private, are reused automatically and survive a new-party reset (except the optional sensitive answer, which is deliberately erased). Their forms collapse into an “already saved” summary with an edit action. Unknown personal answers are not guessed.

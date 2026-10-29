@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Check, LockKeyhole, Save } from "lucide-react";
+import { Check, LockKeyhole, Save, SquarePen } from "lucide-react";
 import type { Question, Secret } from "@/lib/game/types";
 import type { PartyClient } from "./use-party";
 export function PrivateForm({
@@ -12,6 +12,7 @@ export function PrivateForm({
   c: PartyClient;
   secret?: Secret;
 }) {
+  const [editing, setEditing] = useState(false);
   const [text, setText] = useState(secret?.text ?? ""),
     [num, setNum] = useState(secret?.number?.toString() ?? ""),
     [prompt, setPrompt] = useState(secret?.prompt ?? ""),
@@ -21,6 +22,15 @@ export function PrivateForm({
   const options = ["choice", "multi", "outfit", "photo"].includes(q.kind);
   const isDrawing = q.kind === "drawing";
   const isNum = q.kind === "number" || q.sensitive;
+  const prepared = (q.confirmed || saved) && (secret?.number !== undefined || !!secret?.text || !!secret?.answers?.length || !!secret?.prompt);
+  if (prepared && !editing) return (
+    <section className="secret-form">
+      <h3><Check size={18} style={{display:'inline',verticalAlign:'middle',marginRight:8}}/>Réponse déjà enregistrée</h3>
+      <p className="small-text muted">Rien à ressaisir : cette réponse sera utilisée automatiquement et restera mémorisée pour les prochaines parties.</p>
+      <p><strong>{secret?.answers?.join(' + ') ?? secret?.text ?? (secret?.number !== undefined ? `${secret.number} ${q.unit}` : secret?.prompt)}</strong></p>
+      <button type="button" className="btn small" onClick={()=>{setText(secret?.text??'');setNum(secret?.number?.toString()??'');setPrompt(secret?.prompt??'');setAnswers(secret?.answers??[]);setAliases(secret?.aliases?.join('\n')??'');setEditing(true);}}><SquarePen size={16}/>Modifier la réponse</button>
+    </section>
+  );
   return (
     <form
       className="secret-form"
@@ -39,6 +49,7 @@ export function PrivateForm({
         }
         const ok = await c.command("private", values);
         setSaved(ok);
+        if(ok)setEditing(false);
       }}
     >
       <h3>
