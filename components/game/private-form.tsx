@@ -19,19 +19,68 @@ export function PrivateForm({
     [aliases, setAliases] = useState(secret?.aliases?.join("\n") ?? ""),
     [answers, setAnswers] = useState(secret?.answers ?? []),
     [saved, setSaved] = useState(false);
-  const options = ["choice", "multi", "outfit", "photo"].includes(q.kind) || (q.kind === "blind" && q.options.length > 0);
+  const options =
+    ["choice", "multi", "outfit", "photo"].includes(q.kind) ||
+    (q.kind === "blind" && q.options.length > 0);
   const isDrawing = q.kind === "drawing";
   const isNum = q.kind === "number" || q.sensitive;
-  if(q.kind==='creative')return <section className="notice">Aucune bonne réponse à préparer : les invités inventent leurs excuses et Marlène choisit sa préférée au moment du vote.</section>;
-  const prepared = (q.confirmed || saved) && (secret?.number !== undefined || !!secret?.text || !!secret?.answers?.length || !!secret?.prompt);
-  if (prepared && !editing) return (
-    <section className="secret-form">
-      <h3><Check size={18} style={{display:'inline',verticalAlign:'middle',marginRight:8}}/>Réponse déjà enregistrée</h3>
-      <p className="small-text muted">Rien à ressaisir : cette réponse sera utilisée automatiquement et restera mémorisée pour les prochaines parties.</p>
-      <p><strong>{secret?.answers?.join(' + ') ?? secret?.text ?? (secret?.number !== undefined ? `${secret.number} ${q.unit}` : secret?.prompt)}</strong></p>
-      <button type="button" className="btn small" onClick={()=>{setText(secret?.text??'');setNum(secret?.number?.toString()??'');setPrompt(secret?.prompt??'');setAnswers(secret?.answers??[]);setAliases(secret?.aliases?.join('\n')??'');setEditing(true);}}><SquarePen size={16}/>Modifier la réponse</button>
-    </section>
-  );
+  if (q.kind === "creative")
+    return (
+      <section className="notice">
+        Aucune bonne réponse à préparer : les invités inventent leurs excuses et
+        Marlène choisit sa préférée au moment du vote.
+      </section>
+    );
+  const prepared =
+    (q.confirmed || saved) &&
+    (secret?.number !== undefined ||
+      !!secret?.text ||
+      !!secret?.answers?.length ||
+      !!secret?.prompt);
+  if (prepared && !editing)
+    return (
+      <section className="secret-form">
+        <h3>
+          <Check
+            size={18}
+            style={{
+              display: "inline",
+              verticalAlign: "middle",
+              marginRight: 8,
+            }}
+          />
+          Réponse déjà enregistrée
+        </h3>
+        <p className="small-text muted">
+          Rien à ressaisir : cette réponse sera utilisée automatiquement et
+          restera mémorisée pour les prochaines parties.
+        </p>
+        <p>
+          <strong>
+            {secret?.answers?.join(" + ") ??
+              secret?.text ??
+              (secret?.number !== undefined
+                ? `${secret.number} ${q.unit}`
+                : secret?.prompt)}
+          </strong>
+        </p>
+        <button
+          type="button"
+          className="btn small"
+          onClick={() => {
+            setText(secret?.text ?? "");
+            setNum(secret?.number?.toString() ?? "");
+            setPrompt(secret?.prompt ?? "");
+            setAnswers(secret?.answers ?? []);
+            setAliases(secret?.aliases?.join("\n") ?? "");
+            setEditing(true);
+          }}
+        >
+          <SquarePen size={16} />
+          Modifier la réponse
+        </button>
+      </section>
+    );
   return (
     <form
       className="secret-form"
@@ -50,7 +99,7 @@ export function PrivateForm({
         }
         const ok = await c.command("private", values);
         setSaved(ok);
-        if(ok)setEditing(false);
+        if (ok) setEditing(false);
       }}
     >
       <h3>
@@ -70,7 +119,11 @@ export function PrivateForm({
           {q.options.map((v) => (
             <label key={v} className="checkbox-label">
               <input
-                type={q.kind === "choice" || q.kind === "blind" ? "radio" : "checkbox"}
+                type={
+                  q.kind === "choice" || q.kind === "blind"
+                    ? "radio"
+                    : "checkbox"
+                }
                 name={`key-${q.id}`}
                 checked={answers.includes(v)}
                 onChange={() => {
@@ -122,12 +175,15 @@ export function PrivateForm({
             {q.kind === "pictionary"
               ? "Ton mot ou ta phrase secrète"
               : q.kind === "pin"
-                ? "Un code fictif (4 à 8 chiffres)"
+                ? "Code fictif à 6 chiffres (aussi utilisé pour l’accès VIP)"
                 : "Ta réponse"}
             <input
               required
               type={q.kind === "pin" ? "password" : "text"}
-              maxLength={500}
+              inputMode={q.kind === "pin" ? "numeric" : undefined}
+              pattern={q.kind === "pin" ? "[0-9]{6}" : undefined}
+              minLength={q.kind === "pin" ? 6 : undefined}
+              maxLength={q.kind === "pin" ? 6 : 500}
               value={text}
               onChange={(e) => {
                 setSaved(false);

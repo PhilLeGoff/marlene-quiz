@@ -49,6 +49,9 @@ export function Admin() {
   const [tab, setTab] = useState("live"),
     [edit, setEdit] = useState<Question | null>(null),
     [reset, setReset] = useState(false),
+    [resetting, setResetting] = useState(false),
+    [stopQuiz, setStopQuiz] = useState(false),
+    [stopping, setStopping] = useState(false),
     [copied, setCopied] = useState(false),
     [adjustId, setAdjustId] = useState(""),
     [delta, setDelta] = useState(1),
@@ -69,6 +72,11 @@ export function Admin() {
     await c.command("reorder", { ids: list });
   }
   const question = d?.question;
+  function openReset() {
+    c.setError("");
+    setStopQuiz(false);
+    setReset(true);
+  }
   return (
     <AppShell c={c} role="admin">
       {c.loading ? (
@@ -86,6 +94,32 @@ export function Admin() {
               </p>
             </div>
             <div className="row">
+              <div
+                className="admin-game-controls"
+                role="group"
+                aria-label="Commandes de la partie"
+              >
+                <button
+                  type="button"
+                  className="btn lilac small"
+                  onClick={openReset}
+                >
+                  <RotateCcw size={17} /> Recommencer
+                </button>
+                {d.phase !== "finished" && (
+                  <button
+                    type="button"
+                    className="btn danger small admin-stop-button"
+                    onClick={() => {
+                      c.setError("");
+                      setReset(false);
+                      setStopQuiz(true);
+                    }}
+                  >
+                    <CircleStop size={18} /> Arrêter le quiz
+                  </button>
+                )}
+              </div>
               <button className="btn small" onClick={() => void copy()}>
                 {copied ? <Check size={16} /> : <Clipboard size={16} />}{" "}
                 {copied ? "Lien copié !" : "Inviter les copains"}
@@ -604,7 +638,7 @@ export function Admin() {
                   anciens points restent dans l’historique, mais ne comptent
                   plus au classement.
                 </p>
-                <button className="btn danger" onClick={() => setReset(true)}>
+                <button className="btn danger" onClick={openReset}>
                   <RotateCcw size={17} /> Nouvelle partie
                 </button>
               </section>
@@ -631,26 +665,102 @@ export function Admin() {
               </button>
             </Modal>
           )}
+          {stopQuiz && (
+            <Modal title="Arrêter le quiz" onClose={() => setStopQuiz(false)}>
+              <h2>On arrête le quiz ?</h2>
+              <p>
+                Les réponses, le chrono et le son seront arrêtés. Le classement
+                actuel sera affiché à tout le monde. Les réponses non encore
+                notées ne rapporteront aucun point.
+              </p>
+              {c.error && (
+                <p className="error" role="alert">
+                  {c.error}
+                </p>
+              )}
+              <div className="form-actions">
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={stopping}
+                  onClick={() => setStopQuiz(false)}
+                >
+                  Continuer le quiz
+                </button>
+                <button
+                  type="button"
+                  className="btn danger"
+                  disabled={stopping}
+                  onClick={async () => {
+                    setStopping(true);
+                    try {
+                      if (await c.command("finish")) {
+                        setStopQuiz(false);
+                        setTab("live");
+                      }
+                    } finally {
+                      setStopping(false);
+                    }
+                  }}
+                >
+                  <CircleStop size={17} />{" "}
+                  {stopping ? "Arrêt en cours…" : "Oui, arrêter le quiz"}
+                </button>
+              </div>
+            </Modal>
+          )}
           {reset && (
             <Modal
               title="Réinitialiser la partie"
               onClose={() => setReset(false)}
             >
-              <h2>Une nouvelle tournée.</h2>
+              <h2>On recommence à zéro ?</h2>
               <p>
-                Le classement sera remis à zéro. Les questions et leurs réponses enregistrées seront conservées.
+                Les points, le classement, les participations et les dessins
+                seront remis à zéro. Tout le monde reviendra au salon, sans
+                devoir se reconnecter. Les questions et leurs bonnes réponses
+                enregistrées seront conservées.
               </p>
+              {c.error && (
+                <p className="error" role="alert">
+                  {c.error}
+                </p>
+              )}
               <form
                 onSubmit={async (e) => {
                   e.preventDefault();
-                  if (await c.command("reset", { confirm: d.room })) {
-                    setReset(false);
+                  setResetting(true);
+                  try {
+                    if (await c.command("reset", { confirm: d.room })) {
+                      setReset(false);
+                      setStopQuiz(false);
+                      setEdit(null);
+                      setDeleteQ(null);
+                      setTab("live");
+                    }
+                  } finally {
+                    setResetting(false);
                   }
                 }}
               >
-                <button className="btn danger wide" style={{ marginTop: 20 }}>
-                  Relancer une nouvelle partie
-                </button>
+                <div className="form-actions">
+                  <button
+                    type="button"
+                    className="btn"
+                    disabled={resetting}
+                    onClick={() => setReset(false)}
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn lilac"
+                    disabled={resetting}
+                  >
+                    <RotateCcw size={17} />{" "}
+                    {resetting ? "Remise à zéro…" : "Oui, recommencer"}
+                  </button>
+                </div>
               </form>
             </Modal>
           )}

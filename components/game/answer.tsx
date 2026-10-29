@@ -1,10 +1,11 @@
 "use client";
 import { useState } from "react";
-import { ArrowRight, Check, Delete, LockKeyhole, Send } from "lucide-react";
+import { Check, LockKeyhole, Send } from "lucide-react";
 import type { Stroke, View } from "@/lib/game/types";
 import type { PartyClient } from "./use-party";
 import { DrawingCanvas, DrawingPreview } from "./canvas";
 import { Outfit } from "./shared";
+import { PinPad } from "./pin-pad";
 export function Answer({ data, c }: { data: View; c: PartyClient }) {
   const q = data.question!;
   const [selected, setSelected] = useState<string[]>([]),
@@ -44,13 +45,12 @@ export function Answer({ data, c }: { data: View; c: PartyClient }) {
   const single = q.kind === "choice" || q.kind === "blind";
   const select = (v: string) =>
     setSelected((old) =>
-      single
-        ? [v]
-        : old.includes(v)
-          ? old.filter((x) => x !== v)
-          : [...old, v],
+      single ? [v] : old.includes(v) ? old.filter((x) => x !== v) : [...old, v],
     );
-  if (["choice", "multi", "outfit", "photo"].includes(q.kind) || (q.kind === "blind" && q.options.length > 0))
+  if (
+    ["choice", "multi", "outfit", "photo"].includes(q.kind) ||
+    (q.kind === "blind" && q.options.length > 0)
+  )
     return (
       <div>
         {q.kind === "outfit" && <Outfit selected={selected} />}
@@ -120,54 +120,17 @@ export function Answer({ data, c }: { data: View; c: PartyClient }) {
           />{" "}
           Un code inventé pour la fête. Aucun vrai code de téléphone.
         </p>
-        <div className="pin-display" aria-live="polite">
-          {text || "· · · ·"}
-        </div>
-        <div className="keypad">
-          {[
-            "1",
-            "2",
-            "3",
-            "4",
-            "5",
-            "6",
-            "7",
-            "8",
-            "9",
-            "effacer",
-            "0",
-            "ok",
-          ].map((v) => (
-            <button
-              key={v}
-              disabled={
-                c.busy || attempts >= q.attempts || data.mySubmission?.correct
-              }
-              aria-label={
-                v === "effacer"
-                  ? "Effacer le dernier chiffre"
-                  : v === "ok"
-                    ? "Essayer ce code"
-                    : v
-              }
-              onClick={() =>
-                v === "effacer"
-                  ? setText((t) => t.slice(0, -1))
-                  : v === "ok"
-                    ? void submit(text)
-                    : setText((t) => (t.length < 8 ? t + v : t))
-              }
-            >
-              {v === "effacer" ? (
-                <Delete size={22} style={{ margin: "auto" }} />
-              ) : v === "ok" ? (
-                <ArrowRight style={{ margin: "auto" }} />
-              ) : (
-                v
-              )}
-            </button>
-          ))}
-        </div>
+        <PinPad
+          value={text}
+          onChange={setText}
+          onSubmit={() => void submit(text)}
+          busy={c.busy}
+          disabled={
+            expired || attempts >= q.attempts || !!data.mySubmission?.correct
+          }
+          label="Le code mystère à 6 chiffres"
+          submitLabel="Essayer ce code"
+        />
         <p className="attempts" role="status">
           {data.mySubmission?.correct
             ? "Bien joué ! Coffre déverrouillé."

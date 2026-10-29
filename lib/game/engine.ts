@@ -10,6 +10,7 @@ import type {
   View,
 } from "./types";
 import { OPEN, REVEALED } from "./types";
+import { MARLENE_NAME } from "./vip";
 export class GameError extends Error {
   constructor(
     message: string,
@@ -39,7 +40,10 @@ export function correct(
     return typeof value === "number" && key.number !== undefined
       ? Math.abs(value - key.number) <= q.tolerance
       : null;
-  if (["multi", "outfit", "photo", "choice"].includes(q.kind) || (q.kind === "blind" && q.options.length > 0)) {
+  if (
+    ["multi", "outfit", "photo", "choice"].includes(q.kind) ||
+    (q.kind === "blind" && q.options.length > 0)
+  ) {
     if (!key.answers?.length) return null;
     const values: unknown[] = Array.isArray(value) ? value : [value];
     return (
@@ -48,6 +52,7 @@ export function correct(
     );
   }
   if (!key.text) return null;
+  if (q.kind === "pin") return String(value) === key.text;
   return [key.text, ...(key.aliases ?? []), ...q.aliases].some(
     (a) => normalize(a) === normalize(String(value)),
   );
@@ -233,7 +238,7 @@ export function view(
   now = Date.now(),
 ): View {
   const q = s.questions[s.index];
-  const revealed = REVEALED.includes(s.phase);
+  const revealed = REVEALED.includes(s.phase) && !s.finishedEarly;
   const subs = s.submissions[s.roundId] ?? [];
   const me = subs.find((x) => x.playerId === actor?.playerId);
   const gallery =
@@ -243,7 +248,9 @@ export function view(
       "reveal",
       "leaderboard",
       "finished",
-    ].includes(s.phase) && q?.kind === "drawing"
+    ].includes(s.phase) &&
+    q?.kind === "drawing" &&
+    !s.finishedEarly
       ? subs
           .filter((x) => !x.moderated)
           .map((x) => ({
@@ -300,7 +307,7 @@ export function view(
     v.questions = s.questions;
     v.secrets = s.secrets;
     v.submissions = subs;
-    v.events = s.events;
+    v.events = s.events.filter((event) => event.generation === s.generation);
     v.consent = s.consent;
     v.revealAllowed = s.revealAllowed;
   }
@@ -393,6 +400,12 @@ export function reduce(
         "Entre un nom de 1 à 24 caractères.",
       );
       must(
+        actor.role === "marlene" ||
+          nicknameKey(nickname) !== nicknameKey(MARLENE_NAME),
+        "Ce prénom est réservé à Marlène. Choisis un autre petit nom.",
+        409,
+      );
+      must(
         !s.players.some(
           (p) =>
             p.active &&
@@ -407,6 +420,7 @@ export function reduce(
       if (existing) {
         existing.nickname = nickname;
         existing.active = true;
+        if (actor.role === "marlene") existing.role = "marlene";
         if (actor.role === "guest") existing.role = "guest";
       } else
         s.players.push({
@@ -484,7 +498,10 @@ export function reduce(
             Math.abs(value) <= 1e9,
           "Entre un nombre valide.",
         );
-      else if (["choice", "multi", "outfit", "photo"].includes(q.kind) || (q.kind === "blind" && q.options.length > 0)) {
+      else if (
+        ["choice", "multi", "outfit", "photo"].includes(q.kind) ||
+        (q.kind === "blind" && q.options.length > 0)
+      ) {
         must(
           Array.isArray(value) &&
             value.length <= q.options.length &&
@@ -502,6 +519,11 @@ export function reduce(
             value.trim().length > 0 &&
             value.length <= 500,
           "Réponse attendue : 1 à 500 caractères.",
+        );
+      if (q.kind === "pin")
+        must(
+          typeof value === "string" && /^\d{6}$/.test(value),
+          "Entre un code à 6 chiffres.",
         );
       const sub: Submission = {
         id: previous?.id ?? cmd.id,
@@ -601,8 +623,13 @@ export function reduce(
     }
     case "finish":
       s.phase = "finished";
+      s.finishedEarly = true;
       s.deadline = 0;
+      s.strokes = [];
       s.audio.playing = false;
+      s.revealAllowed = false;
+      s.consent = false;
+      s.consentAt = 0;
       for (const item of s.questions.filter((x) => x.sensitive)) {
         delete s.secrets[item.id];
         for (const [rid, subs] of Object.entries(s.submissions))
@@ -644,8 +671,8 @@ export function reduce(
         );
         if (target.kind === "pin")
           must(
-            /^\d{4,8}$/.test(cmd.text),
-            "Utilise un code fictif de 4 à 8 chiffres.",
+            /^\d{6}$/.test(cmd.text),
+            "Utilise un code fictif de 6 chiffres.",
           );
         secret.text = cmd.text;
       }
@@ -1071,15 +1098,19 @@ export function reduce(
         "Recopie le code de la salle pour réinitialiser.",
       );
       s.generation++;
+      s.finishedEarly = false;
       s.index = -1;
       s.phase = "lobby";
       s.roundId = "";
       s.submissions = {};
       s.strokes = [];
       s.deadline = 0;
+      s.startedAt = 0;
       s.winner = undefined;
       s.consent = false;
-      s.audio.playing = false;
+      s.consentAt = 0;
+      s.revealAllowed = false;
+      s.audio = { playing: false, at: 0, offset: 0 };
       for (const item of s.questions.filter((x) => x.sensitive)) {
         delete s.secrets[item.id];
         item.enabled = false;

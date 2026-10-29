@@ -1,6 +1,7 @@
 import type { Actor, Party, Role } from "./types";
 import { GameError } from "./engine";
 import { config } from "./store";
+import { MARLENE_PIN } from "./vip";
 const enc = new TextEncoder();
 const hex = (bytes: ArrayBuffer) =>
   Array.from(new Uint8Array(bytes), (x) =>
@@ -26,6 +27,18 @@ export async function requireAdminPassword(value: unknown) {
     throw new GameError("Mot de passe administrateur incorrect.", 401);
   return expected;
 }
+export async function requireMarlenePin(value: unknown, pin = MARLENE_PIN) {
+  const expected = await hash(`marlene-pin-v1:${pin}`);
+  const given = await hash(
+    `marlene-pin-v1:${typeof value === "string" ? value : ""}`,
+  );
+  let difference = 0;
+  for (let i = 0; i < expected.length; i++)
+    difference |= expected.charCodeAt(i) ^ given.charCodeAt(i);
+  if (typeof value !== "string" || !/^\d{6}$/.test(value) || difference !== 0)
+    throw new GameError("Code PIN incorrect. Réessaie, Votre Majesté !", 401);
+  return expected;
+}
 export function cookie(req: Request, role: Role) {
   return req.headers
     .get("cookie")
@@ -49,6 +62,10 @@ export async function actor(
   if (role === "admin" && !identityOnly) {
     const secret = config("ADMIN_PASSWORD");
     if (!secret || s.adminProof !== (await hash(secret))) return null;
+  }
+  if (role === "marlene" && !identityOnly) {
+    const pin = p.secrets.q8?.text ?? MARLENE_PIN;
+    if (s.marleneProof !== (await hash(`marlene-pin-v1:${pin}`))) return null;
   }
   return { role: s.role, playerId: s.playerId };
 }

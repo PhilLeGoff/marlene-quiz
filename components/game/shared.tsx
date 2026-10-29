@@ -42,7 +42,7 @@ export function AppShell({
 }) {
   return (
     <div className={role === "marlene" ? "star-shell" : ""}>
-      <div className="app-shell">
+      <div className={`app-shell${role === "admin" ? " admin-shell" : ""}`}>
         <header className="app-header">
           <Brand />
           <div className="app-header-actions">
@@ -336,7 +336,12 @@ export function Outfit({ selected }: { selected: string[] }) {
           d="M50 57q-7-40 25-36 38-9 39 40l-17-20-16 6-18-8z"
           fill="#65444b"
         />
-        {selected.includes('Bonnet de nuit')&&<g fill="#d9c9f4" stroke="#604552" strokeWidth="2"><path d="M49 41Q60 8 106 17L120 41Q92 28 49 41Z"/><circle cx="121" cy="42" r="7" fill="#fffaf2"/></g>}
+        {selected.includes("Bonnet de nuit") && (
+          <g fill="#d9c9f4" stroke="#604552" strokeWidth="2">
+            <path d="M49 41Q60 8 106 17L120 41Q92 28 49 41Z" />
+            <circle cx="121" cy="42" r="7" fill="#fffaf2" />
+          </g>
+        )}
         <path
           d="M69 56v3m21-3v3m-17 9q7 6 14 0"
           fill="none"
@@ -356,7 +361,14 @@ export function Outfit({ selected }: { selected: string[] }) {
           strokeWidth="11"
           strokeLinecap="round"
         />
-        {selected.includes('Pyjama intégral')&&<g fill="#a9cbb6" stroke="#604552" strokeWidth="2"><path d="M53 89L35 143L49 149L60 116L55 210H73L81 160L89 210H107L101 116L114 149L127 143L107 89L92 86Q80 101 68 86Z"/><path d="M81 103V161" fill="none"/><circle cx="86" cy="117" r="2" fill="#604552"/><circle cx="86" cy="132" r="2" fill="#604552"/></g>}
+        {selected.includes("Pyjama intégral") && (
+          <g fill="#a9cbb6" stroke="#604552" strokeWidth="2">
+            <path d="M53 89L35 143L49 149L60 116L55 210H73L81 160L89 210H107L101 116L114 149L127 143L107 89L92 86Q80 101 68 86Z" />
+            <path d="M81 103V161" fill="none" />
+            <circle cx="86" cy="117" r="2" fill="#604552" />
+            <circle cx="86" cy="132" r="2" fill="#604552" />
+          </g>
+        )}
         {selected.includes("T-shirt") && (
           <path
             d="M53 90l-14 27 16 9 5-13-1 34h42l-1-34 6 13 16-9-15-27-15-3q-12 17-24 0z"

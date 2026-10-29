@@ -5,16 +5,8 @@
       "source": 1,
       "title": "Comment Marlène veut-elle appeler ses enfants ?",
       "kind": "multi",
-      "options": [
-        "Simone",
-        "Gaspard",
-        "Philippe",
-        "Colette"
-      ],
-      "generated": [
-        "Gaspard",
-        "Colette"
-      ],
+      "options": ["Simone", "Gaspard", "Philippe", "Colette"],
+      "generated": ["Gaspard", "Colette"],
       "enabled": true,
       "confirmed": true,
       "duration": 45,
@@ -42,10 +34,7 @@
         "Portugal",
         "Indonésie"
       ],
-      "generated": [
-        "Japon",
-        "Portugal"
-      ],
+      "generated": ["Japon", "Portugal"],
       "enabled": true,
       "confirmed": true,
       "duration": 45,
@@ -238,10 +227,7 @@
         "Bonnet de nuit",
         "Short"
       ],
-      "generated": [
-        "Pyjama intégral",
-        "Bonnet de nuit"
-      ],
+      "generated": ["Pyjama intégral", "Bonnet de nuit"],
       "enabled": true,
       "confirmed": true,
       "duration": 45,
@@ -263,12 +249,12 @@
       "kind": "pin",
       "options": [],
       "generated": [],
-      "enabled": false,
-      "confirmed": false,
+      "enabled": true,
+      "confirmed": true,
       "duration": 60,
       "tolerance": 0,
       "unit": "",
-      "note": "BONUS : uniquement un code fictif créé pour le jeu. Jamais le code d’un appareil réel.",
+      "note": "BONUS : code de jeu à 6 chiffres, identique au code de l’espace VIP. Jamais le code d’un appareil réel.",
       "aliases": [],
       "bonus": 5,
       "attempts": 3,
@@ -380,9 +366,7 @@
         "Ne pas payer le resto",
         "Dire « comme même » avec beaucoup trop de conviction"
       ],
-      "generated": [
-        "Dire « comme même » avec beaucoup trop de conviction"
-      ],
+      "generated": ["Dire « comme même » avec beaucoup trop de conviction"],
       "enabled": true,
       "confirmed": true,
       "duration": 45,
@@ -484,61 +468,33 @@
   ],
   "secrets": {
     "q1": {
-      "answers": [
-        "Philippe",
-        "Simone"
-      ]
+      "answers": ["Philippe", "Simone"]
     },
     "q2": {
-      "answers": [
-        "France",
-        "Canada",
-        "Indonésie",
-        "Australie"
-      ]
+      "answers": ["France", "Canada", "Indonésie", "Australie"]
     },
     "q3": {
-      "answers": [
-        "Elle a fait pipi",
-        "Elle a sauté du balcon en culotte"
-      ]
+      "answers": ["Elle a fait pipi", "Elle a sauté du balcon en culotte"]
     },
     "q4": {
-      "answers": [
-        "Son cheval"
-      ]
+      "answers": ["Son cheval"]
     },
     "q10": {
-      "answers": [
-        "Prof de plongée"
-      ]
+      "answers": ["Prof de plongée"]
     },
     "q13": {
-      "answers": [
-        "Garder ses cotons-tiges usagés dans une boîte"
-      ]
+      "answers": ["Garder ses cotons-tiges usagés dans une boîte"]
     },
     "q7": {
-      "answers": [
-        "Chaussettes",
-        "T-shirt",
-        "Short"
-      ]
+      "answers": ["Chaussettes", "T-shirt", "Short"]
     },
     "q6a": {
-      "answers": [
-        "Noir Désir — Marlène"
-      ],
+      "answers": ["Noir Désir — Marlène"],
       "text": "Marlène",
-      "aliases": [
-        "Noir Désir",
-        "Noir Désir Marlène"
-      ]
+      "aliases": ["Noir Désir", "Noir Désir Marlène"]
     },
     "q6b": {
-      "answers": [
-        "Måneskin — L’altra dimensione"
-      ],
+      "answers": ["Måneskin — L’altra dimensione"],
       "text": "L’altra dimensione",
       "aliases": [
         "Måneskin",
@@ -549,14 +505,12 @@
       ]
     },
     "q6c": {
-      "answers": [
-        "Jive Me — 120 BPM"
-      ],
+      "answers": ["Jive Me — 120 BPM"],
       "text": "120 BPM",
-      "aliases": [
-        "Jive Me",
-        "Jive Me 120 BPM"
-      ]
+      "aliases": ["Jive Me", "Jive Me 120 BPM"]
+    },
+    "q8": {
+      "text": "123456"
     }
   }
 }

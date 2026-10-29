@@ -1,6 +1,7 @@
 import {
   actor,
   requireAdminPassword,
+  requireMarlenePin,
   boundedBody,
   hash,
   sameOrigin,
@@ -24,6 +25,7 @@ import {
 } from "@/lib/game/engine";
 import { createParty, applySuppliedAnswers } from "@/lib/game/seed";
 import type { Actor, Command, Role } from "@/lib/game/types";
+import { MARLENE_NAME } from "@/lib/game/vip";
 export const dynamic = "force-dynamic";
 const json = (
   data: unknown,
@@ -58,7 +60,8 @@ function fail(e: unknown) {
 export async function GET(req: Request) {
   try {
     let current = await readParty();
-    if(current&&applySuppliedAnswers(current.party)!==current.party)current=await mutate(p=>applySuppliedAnswers(p));
+    if (current && applySuppliedAnswers(current.party) !== current.party)
+      current = await mutate((p) => applySuppliedAnswers(p));
     if (
       current &&
       current.party.consent &&
@@ -130,7 +133,13 @@ export async function POST(req: Request) {
         await rateLimit(`admin-auth:${await hash(ip)}`, 12);
         adminProof = await requireAdminPassword(body.password);
       }
-      // Everyone can start or enter the party with a name. Initialization is race-safe.
+      if (role === "marlene") {
+        await rateLimit(`marlene-auth:${await hash(ip)}`, 12);
+        const current = await readParty();
+        const prepared = current ? applySuppliedAnswers(current.party) : null;
+        await requireMarlenePin(body.pin, prepared?.secrets.q8?.text);
+      }
+      // Guests use a name; privileged roles authenticate before initialization.
       if (!(await readParty()))
         await insertParty(
           createParty(
@@ -145,7 +154,11 @@ export async function POST(req: Request) {
         freshId = crypto.randomUUID();
       let joined: Actor = { role, playerId: freshId };
       const result = await mutate(async (p) => {
-        p=applySuppliedAnswers(p);
+        p = applySuppliedAnswers(p);
+        const marleneProof =
+          role === "marlene"
+            ? await requireMarlenePin(body.pin, p.secrets.q8?.text)
+            : undefined;
         const own = [];
         for (const r of ["guest", "admin", "marlene"] as const) {
           const a = await actor(req, p, r, true);
@@ -162,6 +175,35 @@ export async function POST(req: Request) {
           role,
           playerId: matching?.playerId ?? current?.playerId ?? freshId,
         };
+        if (role === "marlene") {
+          // A single VIP identity survives sign-out and reconnects on another device.
+          const vip = p.players.find((player) => player.role === "marlene");
+          joined = { role, playerId: vip?.id ?? "marlene-vip" };
+          body = { ...body, nickname: MARLENE_NAME };
+          for (const player of p.players) {
+            if (player.role === "marlene" && player.id !== joined.playerId)
+              player.active = false;
+            if (
+              player.id !== joined.playerId &&
+              nicknameKey(player.nickname) === nicknameKey(MARLENE_NAME)
+            ) {
+              // Preserve any pre-existing guest's points while freeing the VIP name.
+              let suffix = 1;
+              let replacement = "Marlène (invité)";
+              while (
+                p.players.some(
+                  (other) =>
+                    other.id !== player.id &&
+                    nicknameKey(other.nickname) === nicknameKey(replacement),
+                )
+              )
+                replacement = `Marlène (invité ${++suffix})`;
+              player.nickname = replacement;
+            }
+          }
+          for (const [oldKey, session] of Object.entries(p.sessions))
+            if (session.role === "marlene") delete p.sessions[oldKey];
+        }
         // Expired sessions do not reserve names forever.
         for (const player of p.players)
           if (
@@ -179,6 +221,7 @@ export async function POST(req: Request) {
           ...joined,
           expires: Date.now() + 2592000000,
           ...(adminProof ? { adminProof } : {}),
+          ...(marleneProof ? { marleneProof } : {}),
         };
         return next;
       });
@@ -239,7 +282,7 @@ export async function POST(req: Request) {
       );
     }
     const result = await mutate(async (p) => {
-        p=applySuppliedAnswers(p);
+      p = applySuppliedAnswers(p);
       const live = await actor(req, p, role);
       if (!live) throw new GameError("Session expirée.", 401);
       const next = reduce(p, live, body);

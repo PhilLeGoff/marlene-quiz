@@ -100,9 +100,11 @@ export type Session = {
   playerId?: string;
   expires: number;
   adminProof?: string;
+  marleneProof?: string;
 };
 export type Party = {
-  questionPresetVersions?: Record<string,string>;
+  finishedEarly?: boolean;
+  questionPresetVersions?: Record<string, string>;
   room: string;
   phase: Phase;
   index: number;

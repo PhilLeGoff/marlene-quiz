@@ -17,7 +17,8 @@ export async function GET(req: Request) {
   const canRead =
     a?.role === "admin" ||
     a?.playerId === sub?.playerId ||
-    ((!!a || url.searchParams.get("room") === p.room) &&
+    (!p.finishedEarly &&
+      (!!a || url.searchParams.get("room") === p.room) &&
       (p.phase === "voting_open" || REVEALED.includes(p.phase)));
   if (!id || !sub || !canRead) return new Response(null, { status: 403 });
   return getMedia(id);
