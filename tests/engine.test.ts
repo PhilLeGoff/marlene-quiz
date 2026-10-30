@@ -101,7 +101,6 @@ describe("scoring and normalization", () => {
     let p = opened();
     p = run(p, guest(), "submit", { value: ["Elle a fait pipi"] });
     p = run(p, admin, "close");
-    p = run(p, admin, "reveal");
     const sub = p.submissions[p.roundId][0];
     p = run(p, admin, "moderate", { submissionId: sub.id });
     const result = leaderboard(p).find((x) => x.id === "alice")!;
@@ -189,7 +188,6 @@ describe("scoring and normalization", () => {
       value: ["Elle a dormi toute la nuit dehors"],
     });
     p = run(p, admin, "close");
-    p = run(p, admin, "reveal");
     expect(leaderboard(p).find((p) => p.id === "alice")?.score).toBe(-1);
     expect(leaderboard(p).find((p) => p.id === "bob")?.score).toBe(0);
   });
@@ -199,10 +197,9 @@ describe("scoring and normalization", () => {
     p = reduce(p, guest(), cmd, 2100);
     p = reduce(p, guest(), cmd, 2200);
     expect(p.submissions[p.roundId]).toHaveLength(1);
-    p = run(p, admin, "close");
-    const reveal = command("reveal");
-    p = reduce(p, admin, reveal);
-    p = reduce(p, admin, reveal);
+    const close = command("close");
+    p = reduce(p, admin, close);
+    p = reduce(p, admin, close);
     expect(p.events).toHaveLength(1);
     expect(p.events[0].delta).toBe(1);
   });
@@ -210,8 +207,6 @@ describe("scoring and normalization", () => {
     let p = opened();
     p = run(p, guest(), "submit", { value: ["Elle a fait pipi"] }, 2100);
     p = run(p, guest("bob"), "submit", { value: ["Elle a fait pipi"] }, 2200);
-    p = run(p, admin, "close");
-    p = run(p, admin, "reveal");
     expect(leaderboard(p)[0].id).toBe("alice");
     p.events[1].elapsed = 100;
     expect(leaderboard(p).map((x) => x.rank)).toEqual([1, 1]);
@@ -304,12 +299,13 @@ describe("authorization and hidden answers", () => {
   });
   it("reveals a confirmed answer at the right phase only", () => {
     let p = opened();
+    expect(view(p, guest(), 1).answer).toBeUndefined();
     p = run(p, admin, "close");
-    p = run(p, admin, "reveal");
     expect(view(p, guest(), 1).answer?.answers).toEqual(["Elle a fait pipi"]);
   });
   it("requires explicit host permission for star-triggered reveal", () => {
-    let p = opened();
+    let p = opened("q14");
+    p = run(p, star, "private", { questionId: "q14", text: "Un voyage" });
     p = run(p, admin, "close");
     expect(() => run(p, star, "starReveal")).toThrow("autoriser");
     p = run(p, admin, "allowReveal", { allowed: true });
@@ -317,6 +313,46 @@ describe("authorization and hidden answers", () => {
   });
 });
 describe("submissions, timers, drawing and winner races", () => {
+  it("closes, reveals and scores the round once every guest has answered", () => {
+    let p = opened();
+    p = run(p, guest(), "submit", { value: ["Elle a fait pipi"] });
+    expect(p.phase).toBe("question_open");
+    expect(p.events).toHaveLength(0);
+    p = run(p, guest("bob"), "submit", { value: ["Elle a vomi sur le tapis"] });
+    expect(p.phase).toBe("reveal");
+    expect(p.deadline).toBe(0);
+    expect(leaderboard(p).map((x) => [x.id, x.score])).toEqual([
+      ["alice", 1],
+      ["bob", -1],
+    ]);
+    expect(() => run(p, admin, "close")).toThrow("Aucune manche");
+  });
+  it("waits for the host when the server can't mark the round itself", () => {
+    // No answer key yet: everyone answered, but the host confirms it before the reveal.
+    let p = run(party("q5"), admin, "open");
+    p = run(p, guest(), "submit", { value: 165 });
+    p = run(p, guest("bob"), "submit", { value: 172 });
+    expect(p.phase).toBe("submissions_closed");
+    expect(p.events).toHaveLength(0);
+    p = run(p, star, "private", { questionId: "q5", number: 168 });
+    p = run(p, admin, "reveal");
+    expect(p.events).toHaveLength(2);
+    // Free-text guesses at Marlène's answer are validated by the host.
+    p = opened("q14");
+    p = run(p, star, "private", { questionId: "q14", text: "Un voyage" });
+    p = run(p, guest(), "submit", { value: "Voyager" });
+    p = run(p, guest("bob"), "submit", { value: "Une maison" });
+    expect(p.phase).toBe("submissions_closed");
+  });
+  it("keeps several-try rounds open after everyone's first answer", () => {
+    let p = party("q8");
+    p = run(p, admin, "edit", { questionId: "q8", patch: { enabled: true } });
+    p = run(p, admin, "private", { questionId: "q8", text: "824613" });
+    p = run(p, admin, "open");
+    p = run(p, guest(), "submit", { value: "111111" });
+    p = run(p, guest("bob"), "submit", { value: "222222" });
+    expect(p.phase).toBe("question_open");
+  });
   it("rejects duplicate and expired submissions", () => {
     const p = run(opened(), guest(), "submit", { value: ["Elle a fait pipi"] });
     expect(() =>
@@ -396,7 +432,6 @@ describe("submissions, timers, drawing and winner races", () => {
     let p = opened();
     p = run(p, guest(), "submit", { value: ["Elle a fait pipi"] });
     p = run(p, admin, "close");
-    p = run(p, admin, "reveal");
     p = run(p, admin, "reset", { confirm: "123456" });
     expect(p.events).toHaveLength(1);
     expect(leaderboard(p)[0].score).toBe(0);
@@ -405,7 +440,6 @@ describe("submissions, timers, drawing and winner races", () => {
   it("completes the full state sequence", () => {
     let p = opened();
     p = run(p, admin, "close");
-    p = run(p, admin, "reveal");
     p = run(p, admin, "leaderboard");
     p = run(p, admin, "next");
     expect(p.phase).toBe("finished");
