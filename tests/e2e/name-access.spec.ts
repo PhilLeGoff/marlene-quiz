@@ -1,4 +1,5 @@
 import { test, expect, type APIRequestContext } from "@playwright/test";
+import { MARLENE_PIN, signOutApi, typePin } from "./helpers";
 const origin = process.env.TEST_BASE_URL ?? "http://127.0.0.1:3105";
 async function enter(ctx: APIRequestContext, role: string, nickname: string) {
   return ctx.post(`/api/game?as=${role}`, {
@@ -55,29 +56,26 @@ test("guest/star name entry, protected admin, duplicate names, reconnect and sig
     },
   });
   expect(wrong.status()).toBe(401);
-  for (const role of ["admin", "marlene"]) {
-    const page = await c.newPage();
-    await page.goto(`/${role}`);
-    await expect(page.locator('input[type="password"]')).toHaveCount(
-      role === "admin" ? 1 : 0,
-    );
-    if (role === "admin")
-      await page
-        .getByLabel("Mot de passe administrateur")
-        .fill("admin-test-only");
-    await page
-      .getByLabel("Ton petit nom")
-      .fill(`${role} ${crypto.randomUUID().slice(0, 8)}`);
-    await page
-      .getByRole("button", {
-        name:
-          role === "admin" ? "Ouvrir les coulisses" : "Entrer dans mon royaume",
-      })
-      .click();
-    await expect(
-      page.getByRole("button", { name: "Se déconnecter" }),
-    ).toBeVisible();
-    await page.close();
-  }
+  // The host signs in with a name and the password; Marlène only with her PIN pad.
+  const page = await c.newPage();
+  await page.goto("/admin");
+  await page.getByLabel("Mot de passe administrateur").fill("admin-test-only");
+  await page
+    .getByLabel("Ton petit nom")
+    .fill(`admin ${crypto.randomUUID().slice(0, 8)}`);
+  await page.getByRole("button", { name: "Ouvrir les coulisses" }).click();
+  await expect(
+    page.getByRole("button", { name: "Se déconnecter" }),
+  ).toBeVisible();
+  await page.goto("/marlene");
+  await expect(page.getByLabel("Ton petit nom")).toHaveCount(0);
+  await expect(page.getByLabel("Mot de passe administrateur")).toHaveCount(0);
+  await typePin(page, MARLENE_PIN, "Entrer dans mon royaume");
+  await expect(
+    page.getByRole("button", { name: "Se déconnecter" }),
+  ).toBeVisible();
+  await page.close();
+  // Signed-in guests would keep later specs' rounds from closing by themselves.
+  await signOutApi(other.request);
   await Promise.all([a.close(), b.close(), c.close()]);
 });

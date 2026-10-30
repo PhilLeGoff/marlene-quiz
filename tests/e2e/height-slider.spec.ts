@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { joinWithSelfie } from "./helpers";
+import { joinWithSelfie, signOutApi } from "./helpers";
 const origin = process.env.TEST_BASE_URL ?? "http://127.0.0.1:3105";
 test("guests answer Marlène’s height with a slider", async ({ browser }) => {
   const host = await browser.newContext();
@@ -46,4 +46,6 @@ test("guests answer Marlène’s height with a slider", async ({ browser }) => {
   await phone.getByRole("button", { name: /Envoyer ma réponse/ }).click();
   const me = await (await phoneCtx.request.get("/api/game")).json();
   expect(me.mySubmission?.value).toBe(174);
+  // A guest left signed in would keep later specs' rounds from closing by themselves.
+  await signOutApi(phoneCtx.request);
 });

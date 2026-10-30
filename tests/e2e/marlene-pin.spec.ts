@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { signOutApi } from "./helpers";
 const origin = process.env.TEST_BASE_URL ?? "http://127.0.0.1:3105";
 const phone = {
   viewport: { width: 390, height: 844 },
@@ -90,5 +91,7 @@ test("every spelling of her name is sent to the PIN pad, never to a guest seat",
   const page = await context.newPage();
   await joinFromHome(page, `Marlène Dupont ${crypto.randomUUID().slice(0, 4)}`);
   await expect(page).toHaveURL(/\/play$/);
+  // A guest left signed in would keep later specs' rounds from closing by themselves.
+  await signOutApi(context.request);
   await context.close();
 });
