@@ -108,6 +108,36 @@ describe("scoring and normalization", () => {
     );
     q.confirmed = false;
   });
+  it("scores multi select per ticked option, +1 right and −1 wrong", () => {
+    let p = run(party(), star, "private", {
+      questionId: "q3",
+      answers: ["Elle a fait pipi", "Elle a sauté du balcon en culotte"],
+    });
+    p = run(p, admin, "open");
+    p = run(p, guest(), "submit", {
+      value: [
+        "Elle a fait pipi",
+        "Elle a vomi sur le tapis",
+        "Elle a dormi toute la nuit dehors",
+      ],
+    });
+    p = run(p, guest("bob"), "submit", {
+      value: ["Elle a fait pipi", "Elle a sauté du balcon en culotte"],
+    });
+    p = run(p, admin, "close");
+    p = run(p, admin, "reveal");
+    const [alice, bob] = ["alice", "bob"].map((id) =>
+      leaderboard(p).find((x) => x.id === id)!,
+    );
+    expect(alice.score).toBe(-1);
+    expect(alice.correctCount).toBe(0);
+    expect(bob.score).toBe(2);
+    expect(bob.correctCount).toBe(1);
+    expect(view(p, guest(), 0).result).toMatchObject({
+      delta: -1,
+      reason: "1 bonne réponse, 2 mauvaises réponses",
+    });
+  });
   it("supports numeric exact and tolerance", () => {
     const q = { ...seedQuestions[4], confirmed: true, tolerance: 2 };
     expect(correct(q, { number: 168 }, 170)).toBe(true);
