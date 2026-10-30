@@ -198,6 +198,11 @@ export function Admin() {
                             {question && !question.confirmed
                               ? "La bonne réponse reste à confirmer."
                               : ""}
+                            {OPEN.includes(d.phase) &&
+                              !["pictionary", "pin"].includes(
+                                question?.kind ?? "",
+                              ) &&
+                              " La manche se ferme toute seule quand tout le monde a répondu."}
                           </p>
                           {question?.kind === "blind" && (
                             <AudioPlayer data={d} />

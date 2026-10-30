@@ -17,6 +17,23 @@ async function api(
 async function state(ctx: APIRequestContext, as = "admin") {
   return (await ctx.get(`/api/game?as=${as}`)).json();
 }
+// A round closes by itself once everyone has answered, and a round the server can mark
+// is revealed as it closes; the host only steps in for what is left.
+async function closeAndReveal(host: APIRequestContext) {
+  let live = await state(host);
+  if (
+    [
+      "question_open",
+      "drawing_open",
+      "pictionary_live",
+      "waiting_for_marlene_answer",
+    ].includes(live.phase)
+  )
+    live = await api(host, "admin", "close");
+  if (["submissions_closed", "drawing_submissions_closed"].includes(live.phase))
+    live = await api(host, "admin", "reveal");
+  return live;
+}
 function wav() {
   const samples = 8000;
   const b = Buffer.alloc(44 + samples * 2);
@@ -119,7 +136,9 @@ test("complete multiplayer game: all answer types, secrecy, real race, anonymous
       });
       values[q.id] = 168;
     } else if (q.kind === "blind") {
-      values[q.id] = q.options.length ? d.secrets[q.id].answers : d.secrets[q.id].text;
+      values[q.id] = q.options.length
+        ? d.secrets[q.id].answers
+        : d.secrets[q.id].text;
     } else if (q.kind === "pin") {
       await api(host.request, "admin", "private", {
         questionId: q.id,
@@ -257,8 +276,7 @@ test("complete multiplayer game: all answer types, secrecy, real race, anonymous
       ).toBeVisible();
       await api(bob.request, "guest", "submit", { value: strokes });
       await expect(hp.locator(".submission-preview")).toHaveCount(2);
-      await api(host.request, "admin", "close");
-      live = await api(host.request, "admin", "reveal");
+      live = await closeAndReveal(host.request);
       const sv = await state(star.request, "marlene");
       expect(sv.gallery).toHaveLength(2);
       expect(sv.gallery[0].artist).toBeUndefined();
@@ -286,8 +304,7 @@ test("complete multiplayer game: all answer types, secrecy, real race, anonymous
     }
     live = await state(host.request);
     if (!["pictionary_winner", "winner_revealed"].includes(live.phase)) {
-      await api(host.request, "admin", "close");
-      live = await api(host.request, "admin", "reveal");
+      live = await closeAndReveal(host.request);
       if (q.kind === "creative") {
         const s = live.submissions[0];
         await api(star.request, "marlene", "vote", { submissionId: s.id });

@@ -219,6 +219,38 @@ function start(s: Party, now: number) {
         : "question_open";
   if (s.phase === "waiting_for_marlene_answer") s.deadline = 0;
 }
+// Rounds the server can mark on its own: no vote, no host or Marlène judgment, and a known key.
+function autoScored(s: Party, q: Question) {
+  return (
+    !["drawing", "creative", "reveal", "pictionary"].includes(q.kind) &&
+    correct(q, s.secrets[q.id], q.kind === "number" ? 0 : "") !== null
+  );
+}
+// Closing a round the server can mark goes straight to the answer and the points;
+// the others wait for the host (vote, validation, or a key still to confirm).
+function closeRound(s: Party, now: number) {
+  const q = s.questions[s.index];
+  s.phase =
+    q.kind === "drawing" ? "drawing_submissions_closed" : "submissions_closed";
+  s.deadline = 0;
+  s.audio.playing = false;
+  if (autoScored(s, q)) {
+    scoreRound(s, now);
+    s.phase = "reveal";
+  }
+}
+// Pictionary and the PIN bonus allow several tries, so a first answer doesn't end them.
+function everyoneAnswered(s: Party) {
+  const q = s.questions[s.index];
+  if (q.kind === "pictionary" || q.kind === "pin") return false;
+  const answered = new Set(
+    (s.submissions[s.roundId] ?? []).map((x) => x.playerId),
+  );
+  const guests = s.players.filter(
+    (p) => p.active && (!p.role || p.role === "guest"),
+  );
+  return guests.length > 0 && guests.every((p) => answered.has(p.id));
+}
 function publicQuestion(q: Question): Question {
   return {
     id: q.id,
@@ -568,6 +600,7 @@ export function reduce(
       }
       if (q.kind === "pin" && correct(q, s.secrets[q.id], sub.value))
         sub.correct = true;
+      if (OPEN.includes(s.phase) && everyoneAnswered(s)) closeRound(s, now);
       break;
     }
     case "close":
@@ -575,12 +608,7 @@ export function reduce(
         OPEN.includes(s.phase) || s.phase === "waiting_for_marlene_answer",
         "Aucune manche ouverte.",
       );
-      s.phase =
-        q.kind === "drawing"
-          ? "drawing_submissions_closed"
-          : "submissions_closed";
-      s.deadline = 0;
-      s.audio.playing = false;
+      closeRound(s, now);
       break;
     case "reveal": {
       must(
@@ -592,10 +620,7 @@ export function reduce(
         break;
       }
       if (!["creative", "reveal", "pictionary"].includes(q.kind))
-        must(
-          correct(q, s.secrets[q.id], q.kind === "number" ? 0 : "") !== null,
-          "Confirme la bonne réponse avant de révéler.",
-        );
+        must(autoScored(s, q), "Confirme la bonne réponse avant de révéler.");
       if (q.kind === "reveal")
         must(
           s.secrets[q.id]?.text !== undefined ||
