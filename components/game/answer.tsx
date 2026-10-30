@@ -82,7 +82,7 @@ export function Answer({ data, c }: { data: View; c: PartyClient }) {
         <p className="answer-helper">
           {single
             ? "Une seule réponse. Fais confiance à ton instinct."
-            : "Sélectionne toutes les bonnes réponses. Le compte doit être exact."}
+            : "Plusieurs réponses possibles : +1 par bonne réponse cochée, −1 par mauvaise."}
         </p>
         <button
           className="btn primary answer-submit"
