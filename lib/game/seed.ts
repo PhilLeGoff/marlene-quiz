@@ -83,7 +83,8 @@ export const seedQuestions: Question[] = [
   ),
   q(5, "Quelle taille fait Marlène ?", "number", [], {
     unit: "cm",
-    note: "Marlène renseigne sa taille en privé. Tolérance configurable.",
+    note: "Marlène renseigne sa taille en privé. 5 points pile poil, un de moins par cm d’écart.",
+    slider: { min: 140, max: 200, step: 1 },
   }),
   ...["a", "b", "c"].map((id, i) => ({
     ...q(
@@ -295,6 +296,16 @@ export function applySuppliedAnswers(original: Party): Party {
       if (!target.confirmed) target.note = source.note;
     }
     (next.questionPresetVersions ??= {})[id] = version;
+  }
+  // Parties created before sliders existed answer the height by typing; give them the slider.
+  for (const source of seedQuestions) {
+    if (!source.slider) continue;
+    const target = next.questions.find((q) => q.id === source.id);
+    if (!target || target.slider || target.kind !== source.kind) continue;
+    if (next === original) next = structuredClone(original);
+    next.questions.find((q) => q.id === source.id)!.slider = {
+      ...source.slider,
+    };
   }
   return next;
 }

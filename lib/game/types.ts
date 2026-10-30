@@ -54,6 +54,8 @@ export type Question = {
   media: string[];
   clipStart: number;
   clipEnd: number;
+  // A number round answered with a slider instead of typing, e.g. a height in cm.
+  slider?: { min: number; max: number; step: number };
 };
 export type Secret = {
   answers?: string[];
