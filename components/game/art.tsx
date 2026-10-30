@@ -13,10 +13,27 @@ export function Brand() {
 export function Avatar({
   index = 0,
   size = 42,
+  photo,
 }: {
   index?: number;
   size?: number;
+  photo?: string;
 }) {
+  if (photo)
+    return (
+      // A same-origin selfie behind session checks; next/image would add nothing here.
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        className="avatar-photo"
+        src={photo}
+        width={size}
+        height={size}
+        // Tailwind's preflight sets `height: auto` on images, which would undo the square.
+        style={{ width: size, height: size }}
+        alt=""
+        aria-hidden="true"
+      />
+    );
   const colors = [
     "#f7b1a4",
     "#d6c5ef",

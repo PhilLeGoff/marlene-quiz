@@ -31,12 +31,13 @@ import {
   GameMeta,
   Loading,
   phaseLabels,
+  photoUrl,
   PlayerBubbles,
   Ranking,
   Reveal,
 } from "./shared";
 import { AuthScreen } from "./auth-screen";
-import { EmptyParty } from "./art";
+import { Avatar, EmptyParty } from "./art";
 import { QuestionEditor } from "./editor";
 import { PrivateForm } from "./private-form";
 import { Modal } from "./modal";
@@ -528,6 +529,41 @@ export function Admin() {
             <div className="two-columns">
               <section className="panel">
                 <Ranking data={d} />
+                {d.players.some((p) => p.photo) && (
+                  <div className="stack" style={{ marginTop: 30 }}>
+                    <h2>Les selfies</h2>
+                    <p className="small-text muted">
+                      Une photo de trop ? Retire-la : l’invité retrouve son
+                      avatar dessiné.
+                    </p>
+                    {d.players
+                      .filter((p) => p.photo)
+                      .map((p) => (
+                        <div className="row between" key={p.id}>
+                          <span className="row">
+                            <Avatar index={p.avatar} photo={photoUrl(d, p)} />
+                            <strong>{p.nickname}</strong>
+                          </span>
+                          <button
+                            className="btn danger small"
+                            aria-label={`Retirer la photo de ${p.nickname}`}
+                            onClick={async () => {
+                              c.setError("");
+                              const r = await fetch(
+                                `/api/avatar?as=admin&playerId=${encodeURIComponent(p.id)}`,
+                                { method: "DELETE" },
+                              );
+                              if (!r.ok)
+                                c.setError("La photo n’a pas pu être retirée.");
+                              await c.refresh();
+                            }}
+                          >
+                            <Trash2 size={16} /> Retirer
+                          </button>
+                        </div>
+                      ))}
+                  </div>
+                )}
               </section>
               <section className="panel">
                 <h2>Un point de justice</h2>

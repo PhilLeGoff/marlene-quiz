@@ -1065,6 +1065,56 @@ input[type="checkbox"] {
 .player-bubble > span {
   font-weight: 800;
 }
+/* Same rounded-square silhouette as the illustrated avatars (rx 19 on a 48 box). */
+.avatar-photo {
+  flex: none;
+  object-fit: cover;
+  border-radius: 40%;
+  background: var(--lilac);
+}
+.selfie-step {
+  text-align: center;
+}
+.selfie-step h1 {
+  font-size: 32px;
+  margin: 16px 0 10px;
+}
+.selfie-step > p {
+  font-size: 14px;
+  max-width: 400px;
+  margin: 0 auto;
+}
+.selfie-frame {
+  width: 180px;
+  height: 180px;
+  margin: 26px auto;
+  transform: rotate(-4deg);
+}
+.selfie-frame > img,
+.selfie-frame > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 40%;
+  border: 1.5px solid var(--ink);
+  box-shadow: 0 5px 0 var(--ink);
+}
+.selfie-step .stack {
+  max-width: 340px;
+  margin: 0 auto;
+}
+.selfie-later {
+  background: none;
+  border: 0;
+  min-height: 44px;
+  margin-top: 10px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--muted);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
 .guest-main {
   max-width: 700px;
   margin: auto;
@@ -1281,7 +1331,8 @@ input[type="checkbox"] {
   max-width: 190px;
   text-align: center;
 }
-.podium-place > svg {
+.podium-place > svg,
+.podium-place > .avatar-photo {
   margin: auto auto 9px;
   display: block;
 }

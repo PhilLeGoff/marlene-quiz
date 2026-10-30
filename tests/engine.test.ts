@@ -5,6 +5,7 @@ import {
   leaderboard,
   normalize,
   reduce,
+  setPhoto,
   validateStrokes,
   view,
 } from "../lib/game/engine";
@@ -340,4 +341,32 @@ describe("submissions, timers, drawing and winner races", () => {
     p = run(p, admin, "next");
     expect(p.phase).toBe("finished");
   });
+});
+describe("selfies", () => {
+  const first = "11111111-1111-4111-8111-111111111111",
+    second = "22222222-2222-4222-8222-222222222222";
+  it("sets, replaces and removes a player's photo without touching the original", () => {
+    const original = party();
+    const added = setPhoto(original, "alice", first);
+    expect(added.previous).toBeUndefined();
+    expect(original.players[0].photo).toBeUndefined();
+    const replaced = setPhoto(added.party, "alice", second);
+    expect(replaced.previous).toBe(first);
+    expect(replaced.party.players[0].photo).toBe(second);
+    const removed = setPhoto(replaced.party, "alice", null);
+    expect(removed.previous).toBe(second);
+    expect(removed.party.players[0].photo).toBeUndefined();
+  });
+  it("rejects an unknown player", () =>
+    expect(() => setPhoto(party(), "mallory", first)).toThrow("introuvable"));
+  it("shows photos to everyone in the player list", () => {
+    const p = setPhoto(party(), "bob", first).party;
+    expect(view(p, guest(), 1).players.find((x) => x.id === "bob")?.photo).toBe(
+      first,
+    );
+  });
+  it("can't be set through a game command", () =>
+    expect(() => run(party(), guest(), "photo", { photo: first })).toThrow(
+      "Action inconnue",
+    ));
 });

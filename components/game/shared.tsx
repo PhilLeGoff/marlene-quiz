@@ -131,12 +131,18 @@ export function GameMeta({ data }: { data: View }) {
     </div>
   );
 }
+// `room` lets the projector, which has no session, load selfies like it loads drawings.
+export function photoUrl(data: View, player: { photo?: string }) {
+  return player.photo
+    ? `/api/avatar?id=${player.photo}&room=${data.room}`
+    : undefined;
+}
 export function PlayerBubbles({ data }: { data: View }) {
   return (
     <div className="player-bubbles">
       {data.players.map((p) => (
         <div className="player-bubble" key={p.id}>
-          <Avatar index={p.avatar} size={48} />
+          <Avatar index={p.avatar} photo={photoUrl(data, p)} size={48} />
           <span>{p.nickname}</span>
         </div>
       ))}
@@ -172,7 +178,11 @@ export function Ranking({
                   key={p.id}
                   className={`podium-place ${i === 0 ? "gold" : i === 2 ? "bronze" : ""}`}
                 >
-                  <Avatar index={p.avatar} size={i === 0 ? 70 : 55} />
+                  <Avatar
+                    index={p.avatar}
+                    photo={photoUrl(data, p)}
+                    size={i === 0 ? 70 : 55}
+                  />
                   <div className="podium-name">{p.nickname}</div>
                   <div className="podium-block">
                     {p.rank}
@@ -194,7 +204,7 @@ export function Ranking({
             className={`leaderboard-row ${p.id === data.playerId ? "me" : ""}`}
           >
             <span className="rank">{p.rank}</span>
-            <Avatar index={p.avatar} />
+            <Avatar index={p.avatar} photo={photoUrl(data, p)} />
             <span className="player-name">
               {p.nickname}
               {p.id === data.playerId ? " · toi" : ""}

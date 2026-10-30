@@ -66,6 +66,21 @@ export function nicknameKey(value: string) {
     .replace(/\s+/g, " ")
     .trim();
 }
+// Not a `reduce` command: only /api/avatar may set a photo, after storing the uploaded image,
+// so a client can't point its avatar at another media ID (a drawing, a blind-test clip).
+export function setPhoto(
+  original: Party,
+  playerId: string,
+  photo: string | null,
+): { party: Party; previous?: string } {
+  const s = structuredClone(original);
+  const player = s.players.find((p) => p.id === playerId);
+  must(player, "Invité introuvable.", 404);
+  const previous = player.photo;
+  if (photo) player.photo = photo;
+  else delete player.photo;
+  return { party: s, previous };
+}
 export function leaderboard(s: Party): RankedPlayer[] {
   const rows = s.players
     .filter((p) => p.active && (!p.role || p.role === "guest"))
