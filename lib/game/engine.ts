@@ -157,7 +157,15 @@ function scoreRound(s: Party, now: number) {
     if (sub.moderated) continue;
     const result = correct(q, s.secrets[q.id], sub.value);
     if (result === null) continue;
-    if (MULTI_SELECT.includes(q.kind) && Array.isArray(sub.value)) {
+    if (q.slider && typeof sub.value === "number") {
+      const { delta, reason } = sliderScore(
+        q.slider,
+        q.unit,
+        s.secrets[q.id].number!,
+        sub.value,
+      );
+      award(s, sub.playerId, delta, now, reason, result, sub.elapsed);
+    } else if (MULTI_SELECT.includes(q.kind) && Array.isArray(sub.value)) {
       const { delta, reason } = optionScore(
         s.secrets[q.id].answers!,
         sub.value as string[],
@@ -174,6 +182,21 @@ function scoreRound(s: Party, now: number) {
         sub.elapsed,
       );
   }
+}
+// Slider rounds reward closeness: 5 points for the exact value, one less per step off
+// (per cm for the height), going negative for wild guesses.
+export const SLIDER_POINTS = 5;
+export function sliderScore(
+  slider: NonNullable<Question["slider"]>,
+  unit: string,
+  key: number,
+  value: number,
+) {
+  const off = Math.round(Math.abs(value - key) / slider.step);
+  return {
+    delta: SLIDER_POINTS - off,
+    reason: off ? `${off * slider.step} ${unit} d’écart` : "Pile poil !",
+  };
 }
 // Multi-select rounds score each ticked option: +1 if it is a right answer, −1 if not.
 // Leaving an option unticked costs nothing; `correct` still means the exact set, for tie-breaks.
@@ -269,6 +292,7 @@ function publicQuestion(q: Question): Question {
     media: q.media,
     clipStart: q.clipStart,
     clipEnd: q.clipEnd,
+    slider: q.slider,
   };
 }
 export function view(
