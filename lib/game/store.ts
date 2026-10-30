@@ -1,6 +1,7 @@
 import { env } from "party-runtime";
 import type { Party } from "./types";
 import { GameError } from "./engine";
+import { parseRange } from "./range";
 export function config(name: string): string {
   return String(
     (env as unknown as Record<string, unknown>)[name] ??
@@ -141,26 +142,58 @@ export async function deleteMedia(id: string) {
     await sb(`/storage/v1/object/party-media/${id}`, { method: "DELETE" });
   else await env.BUCKET.delete(id);
 }
-export async function getMedia(id: string): Promise<Response> {
+// `range` is the request's Range header: audio is fetched in pieces so the
+// player can seek straight to the blind-test section.
+export async function getMedia(
+  id: string,
+  range?: string | null,
+): Promise<Response> {
+  const base = {
+    "Cache-Control": "private, max-age=3600",
+    "X-Content-Type-Options": "nosniff",
+    "Accept-Ranges": "bytes",
+  };
   if (supabase()) {
-    const r = await sb(`/storage/v1/object/party-media/${id}`);
-    return new Response(r.body, {
+    const r = await sb(`/storage/v1/object/party-media/${id}`, {
+      headers: range ? { Range: range } : {},
+    });
+    const headers: Record<string, string> = {
+      ...base,
+      "Content-Type":
+        r.headers.get("Content-Type") ?? "application/octet-stream",
+    };
+    for (const name of ["Content-Length", "Content-Range"]) {
+      const v = r.headers.get(name);
+      if (v) headers[name] = v;
+    }
+    return new Response(r.body, { status: r.status, headers });
+  }
+  const head = await env.BUCKET.head(id);
+  if (!head) throw new GameError("Média introuvable.", 404);
+  const type = head.httpMetadata?.contentType ?? "application/octet-stream";
+  const part = parseRange(range, head.size);
+  if (part === "unsatisfiable")
+    return new Response(null, {
+      status: 416,
+      headers: { ...base, "Content-Range": `bytes */${head.size}` },
+    });
+  const obj = await env.BUCKET.get(id, part ? { range: part } : undefined);
+  if (!obj) throw new GameError("Média introuvable.", 404);
+  if (!part)
+    return new Response(obj.body, {
       headers: {
-        "Content-Type":
-          r.headers.get("Content-Type") ?? "application/octet-stream",
-        "Cache-Control": "private, max-age=3600",
-        "X-Content-Type-Options": "nosniff",
+        ...base,
+        "Content-Type": type,
+        "Content-Length": String(head.size),
       },
     });
-  }
-  const obj = await env.BUCKET.get(id);
-  if (!obj) throw new GameError("Média introuvable.", 404);
   return new Response(obj.body, {
+    status: 206,
     headers: {
-      "Content-Type":
-        obj.httpMetadata?.contentType ?? "application/octet-stream",
-      "Cache-Control": "private, max-age=3600",
-      "X-Content-Type-Options": "nosniff",
+      ...base,
+      "Content-Type": type,
+      "Content-Length": String(part.length),
+      "Content-Range": `bytes ${part.offset}-${part.offset + part.length - 1}/${head.size}`,
     },
   });
 }
