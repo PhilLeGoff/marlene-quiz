@@ -15,11 +15,18 @@ import {
   Timer,
 } from "./shared";
 import { DrawingCanvas } from "./canvas";
+import { MarleneSlideshow, useMarlenePhotos } from "./marlene-photos";
 import { OPEN, REVEALED } from "@/lib/game/types";
 export function Present() {
   const [origin, setOrigin] = useState("");
   const c = useParty("present"), d = c.data;
   useEffect(() => { setOrigin(location.origin); }, []);
+  const photos = useMarlenePhotos();
+  const album =
+    !!photos.length &&
+    !!d &&
+    OPEN.includes(d.phase) &&
+    d.question?.kind !== "pictionary";
   return (
     <div className="presentation">
       <header>
@@ -112,46 +119,52 @@ export function Present() {
                 <Gallery data={d} />
               </>
             ) : (
-              <>
-                {d.question?.kind === "blind" && (
-                  <AudioPlayer data={d} projector />
-                )}
-                {d.question?.kind === "pictionary" ? (
-                  <div className="projection-drawing">
-                    <DrawingCanvas readOnly value={d.strokes} />
-                  </div>
-                ) : d.question?.kind === "drawing" ? (
-                  <EmptyParty
-                    title={d.answer?.prompt ?? "À vos chefs-d’œuvre !"}
-                    text="Dessinez sur vos téléphones. Le talent est facultatif."
-                  />
-                ) : d.question?.options.length ? (
-                  <div
-                    className={`answer-grid ${d.question.options.length > 6 ? "large" : d.question.options.length > 4 ? "six" : ""}`}
-                  >
-                    {d.question.options.map((v, i) => (
-                      <div className="answer-option" key={v}>
-                        <span className="answer-letter">
-                          {String.fromCharCode(65 + i)}
-                        </span>
-                        <span>{v}</span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <EmptyParty
-                    title={
-                      OPEN.includes(d.phase)
-                        ? "À vous de jouer !"
-                        : "Les réponses sont fermées."
-                    }
-                    text="Tout se passe sur vos téléphones."
-                  />
-                )}
-                <p className="progress-caption" style={{ fontSize: 20 }}>
-                  {d.submissionCount} / {d.players.length} participations reçues
-                </p>
-              </>
+              // While everyone answers, the album of Marlène sits beside the question.
+              // Not during Pictionary: the live drawing needs the whole screen.
+              <div className={`present-stage ${album ? "album" : ""}`}>
+                <div>
+                  {d.question?.kind === "blind" && (
+                    <AudioPlayer data={d} projector />
+                  )}
+                  {d.question?.kind === "pictionary" ? (
+                    <div className="projection-drawing">
+                      <DrawingCanvas readOnly value={d.strokes} />
+                    </div>
+                  ) : d.question?.kind === "drawing" ? (
+                    <EmptyParty
+                      title={d.answer?.prompt ?? "À vos chefs-d’œuvre !"}
+                      text="Dessinez sur vos téléphones. Le talent est facultatif."
+                    />
+                  ) : d.question?.options.length ? (
+                    <div
+                      className={`answer-grid ${d.question.options.length > 6 ? "large" : d.question.options.length > 4 ? "six" : ""}`}
+                    >
+                      {d.question.options.map((v, i) => (
+                        <div className="answer-option" key={v}>
+                          <span className="answer-letter">
+                            {String.fromCharCode(65 + i)}
+                          </span>
+                          <span>{v}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <EmptyParty
+                      title={
+                        OPEN.includes(d.phase)
+                          ? "À vous de jouer !"
+                          : "Les réponses sont fermées."
+                      }
+                      text="Tout se passe sur vos téléphones."
+                    />
+                  )}
+                  <p className="progress-caption" style={{ fontSize: 20 }}>
+                    {d.submissionCount} / {d.players.length} participations
+                    reçues
+                  </p>
+                </div>
+                {album && <MarleneSlideshow variant="tv" />}
+              </div>
             )}
           </>
         )}
