@@ -15,6 +15,7 @@ import { CakeArt, EmptyParty } from "./art";
 import { Answer } from "./answer";
 import { DrawingCanvas } from "./canvas";
 import { SelfieStep, selfieSkipped } from "./selfie";
+import { MarleneSlideshow } from "./marlene-photos";
 import { OPEN, REVEALED } from "@/lib/game/types";
 export function Play() {
   const c = useParty(),
@@ -89,6 +90,7 @@ export function Play() {
                   {me?.photo ? "Changer ma photo" : "Ajouter mon selfie"}
                 </button>
               </div>
+              <MarleneSlideshow />
             </div>
           ) : d.phase === "leaderboard" || d.phase === "finished" ? (
             <Ranking data={d} final={d.phase === "finished"} />
@@ -97,15 +99,21 @@ export function Play() {
               <GameMeta data={d} />
               <h1 className="question-title">{d.question?.title}</h1>
               {d.phase === "next_round" ? (
-                <EmptyParty
-                  title="Une autre petite révélation ?"
-                  text="L’hôte prépare la prochaine manche. Reste dans le coin."
-                />
+                <>
+                  <EmptyParty
+                    title="Une autre petite révélation ?"
+                    text="L’hôte prépare la prochaine manche. Reste dans le coin."
+                  />
+                  <MarleneSlideshow />
+                </>
               ) : d.phase === "waiting_for_marlene_answer" ? (
-                <EmptyParty
-                  title="Marlène prépare la surprise…"
-                  text="Un peu de patience. La reine a un plan."
-                />
+                <>
+                  <EmptyParty
+                    title="Marlène prépare la surprise…"
+                    text="Un peu de patience. La reine a un plan."
+                  />
+                  <MarleneSlideshow />
+                </>
               ) : OPEN.includes(d.phase) ? (
                 <>
                   {d.question?.kind === "drawing" && d.answer?.prompt && (
@@ -134,10 +142,13 @@ export function Play() {
                   <Reveal data={d} />
                 </>
               ) : (
-                <EmptyParty
-                  title="Les jeux sont faits !"
-                  text="On range les antisèches. La révélation arrive…"
-                />
+                <>
+                  <EmptyParty
+                    title="Les jeux sont faits !"
+                    text="On range les antisèches. La révélation arrive…"
+                  />
+                  <MarleneSlideshow />
+                </>
               )}
             </div>
           )}
