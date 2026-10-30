@@ -4,7 +4,9 @@ import {
   type APIRequestContext,
   type APIResponse,
   type Browser,
+  type Page,
 } from "@playwright/test";
+import { joinWithSelfie, selfieJpeg, takeSelfie } from "./helpers";
 const origin = process.env.TEST_BASE_URL ?? "http://127.0.0.1:3105";
 // The same one-pixel authorized fixture as the media upload test.
 const png = Buffer.from(
@@ -116,43 +118,55 @@ test("avatar uploads are typed, owned, served only as selfies and removable by t
     /^404/,
   );
 });
-test("guests take a selfie after their name, or skip it, and it shows on every screen", async ({
+const PHONE = { viewport: { width: 390, height: 844 } };
+const required = (page: Page) =>
+  page.getByRole("heading", { name: "Un selfie, et tu entres !" });
+async function hostAction(
+  ctx: APIRequestContext,
+  action: string,
+  values: Record<string, unknown> = {},
+) {
+  const r = await ctx.post("/api/game?as=admin", {
+    headers: { Origin: origin },
+    data: { id: crypto.randomUUID(), action, ...values },
+  });
+  expect(r.status(), await r.text()).toBe(200);
+  return r.json();
+}
+test("a guest can't reach the game until their selfie is uploaded, and it shows on every screen", async ({
   browser,
 }) => {
   await backToLobby(browser);
   const name = unique("Photogénique");
-  const phone = await (await browser.newContext()).newPage();
+  const phone = await (await browser.newContext(PHONE)).newPage();
   await phone.goto("/");
+  await expect(phone.getByLabel("Choisis ton avatar")).toHaveCount(0);
   await phone.getByLabel("Ton petit nom").fill(name);
   await phone.getByRole("button", { name: /Rejoindre la fête/ }).click();
   await expect(phone).toHaveURL(/\/play$/);
+  await expect(required(phone)).toBeVisible();
+  // No skip and no way back: even a reload lands on the step again.
   await expect(
-    phone.getByRole("heading", { name: "Un selfie pour la postérité ?" }),
-  ).toBeVisible();
-  // A landscape "camera" JPEG drawn in the page, so the crop to a square is exercised too.
-  const camera = await phone.evaluate(async () => {
-    const canvas = document.createElement("canvas");
-    canvas.width = 640;
-    canvas.height = 480;
-    const g = canvas.getContext("2d")!;
-    g.fillStyle = "#f87979";
-    g.fillRect(0, 0, 640, 480);
-    g.fillStyle = "#392938";
-    g.beginPath();
-    g.arc(320, 240, 120, 0, Math.PI * 2);
-    g.fill();
-    const blob = await new Promise<Blob>((resolve) =>
-      canvas.toBlob((b) => resolve(b!), "image/jpeg", 0.9),
-    );
-    let binary = "";
-    for (const byte of new Uint8Array(await blob.arrayBuffer()))
-      binary += String.fromCharCode(byte);
-    return btoa(binary);
-  });
+    phone.getByRole("button", { name: /Plus tard|Retour à la fête/ }),
+  ).toHaveCount(0);
+  await phone.reload();
+  await expect(required(phone)).toBeVisible();
+  await expect(phone.getByText("Tu es sur la liste !")).toHaveCount(0);
+
+  // A failed upload says why and can be retried with the same photo.
+  let failures = 1;
+  await phone.route("**/api/avatar", (route) =>
+    route.request().method() === "POST" && failures-- > 0
+      ? route.fulfill({
+          status: 500,
+          json: { error: "La photo n’a pas pu être enregistrée." },
+        })
+      : route.fallback(),
+  );
   await phone.locator('input[type="file"]').setInputFiles({
     name: "selfie.jpg",
     mimeType: "image/jpeg",
-    buffer: Buffer.from(camera, "base64"),
+    buffer: await selfieJpeg(phone),
   });
   const preview = phone.getByAltText("Aperçu de ton selfie");
   await expect(preview).toBeVisible();
@@ -165,7 +179,13 @@ test("guests take a selfie after their name, or skip it, and it shows on every s
     )
     .toEqual([512, 512]);
   await phone.getByRole("button", { name: /C’est moi/ }).click();
+  await expect(phone.locator(".selfie-step").getByRole("alert")).toHaveText(
+    "La photo n’a pas pu être enregistrée.",
+  );
+  await expect(required(phone)).toBeVisible();
+  await phone.getByRole("button", { name: /Réessayer/ }).click();
   await expect(phone.getByText("Tu es sur la liste !")).toBeVisible();
+
   const mine = phone
     .locator(".player-bubble", { hasText: name })
     .locator("img.avatar-photo");
@@ -173,21 +193,15 @@ test("guests take a selfie after their name, or skip it, and it shows on every s
   await expect
     .poll(() => mine.evaluate((img: HTMLImageElement) => img.naturalWidth))
     .toBeGreaterThan(0);
+  // The photo can be changed, never removed by the guest.
+  await expect(phone.getByRole("button", { name: /Retirer/ })).toHaveCount(0);
+  await phone.getByRole("button", { name: "Changer ma photo" }).click();
   await expect(
-    phone.getByRole("button", { name: "Changer ma photo" }),
+    phone.getByRole("heading", { name: "On refait la photo ?" }),
   ).toBeVisible();
-
-  const shy = await (await browser.newContext()).newPage();
-  await shy.goto("/");
-  await shy.getByLabel("Ton petit nom").fill(unique("Timide"));
-  await shy.getByRole("button", { name: /Rejoindre la fête/ }).click();
-  await shy.getByRole("button", { name: "Plus tard" }).click();
-  await expect(shy.getByText("Tu es sur la liste !")).toBeVisible();
-  await shy.reload();
-  await expect(shy.getByText("Tu es sur la liste !")).toBeVisible();
-  await expect(
-    shy.getByRole("button", { name: "Ajouter mon selfie" }),
-  ).toBeVisible();
+  await expect(phone.getByRole("button", { name: /Retirer/ })).toHaveCount(0);
+  await phone.getByRole("button", { name: "Retour à la fête" }).click();
+  await expect(phone.getByText("Tu es sur la liste !")).toBeVisible();
 
   const projector = await (await browser.newContext()).newPage();
   await projector.goto("/present");
@@ -198,4 +212,61 @@ test("guests take a selfie after their name, or skip it, and it shows on every s
   await expect
     .poll(() => onScreen.evaluate((img: HTMLImageElement) => img.naturalWidth))
     .toBeGreaterThan(0);
+  await phone.getByRole("button", { name: "Se déconnecter" }).click();
+});
+test("a late arrival answers the open round first, then takes the selfie", async ({
+  browser,
+}) => {
+  const { host } = await backToLobby(browser);
+  const ids = (
+    await (await host.request.get("/api/game?as=admin")).json()
+  ).questions.map((q: { id: string }) => q.id);
+  await hostAction(host.request, "reorder", {
+    ids: ["q4", ...ids.filter((x: string) => x !== "q4")],
+  });
+  await hostAction(host.request, "open");
+  const late = await (await browser.newContext(PHONE)).newPage();
+  await joinWithSelfie(late, unique("Retardataire"));
+  // Straight to the question: no photo yet, but no answering time lost either.
+  await expect(late.getByRole("button", { name: "Son cheval" })).toBeVisible({
+    timeout: 30000,
+  });
+  await expect(required(late)).toHaveCount(0);
+  await late.getByRole("button", { name: "Son cheval" }).click();
+  await late.getByRole("button", { name: /Valider mon choix/ }).click();
+  await expect(
+    late.getByRole("heading", { name: "C’est dans la boîte !" }),
+  ).toBeVisible();
+  const state = await host.request.get("/api/game?as=admin");
+  expect(state.status(), await state.text()).toBe(200);
+  const live = await state.json();
+  // Guests left signed in elsewhere would keep the round open.
+  if (live.phase === "question_open") await hostAction(host.request, "close");
+  await expect(required(late)).toBeVisible({ timeout: 30000 });
+  await takeSelfie(late);
+  await late.getByRole("button", { name: "Se déconnecter" }).click();
+});
+test("when the host removes a selfie, the guest is sent back to the step", async ({
+  browser,
+}) => {
+  const { host } = await backToLobby(browser);
+  const name = unique("Recalée");
+  const phone = await (await browser.newContext(PHONE)).newPage();
+  await joinWithSelfie(phone, name);
+  await expect(phone.getByText("Tu es sur la liste !")).toBeVisible();
+  const admin = await host.newPage();
+  await admin.goto("/admin");
+  await admin.getByRole("tab", { name: "Les invités" }).click();
+  const removeButton = admin.getByRole("button", {
+    name: `Retirer la photo de ${name}`,
+  });
+  await removeButton.click();
+  await expect(removeButton).toHaveCount(0);
+  await expect(required(phone)).toBeVisible({ timeout: 30000 });
+  await expect(
+    phone.getByRole("button", { name: /Plus tard|Retour à la fête/ }),
+  ).toHaveCount(0);
+  await takeSelfie(phone);
+  await expect(phone.getByText("Tu es sur la liste !")).toBeVisible();
+  await phone.getByRole("button", { name: "Se déconnecter" }).click();
 });

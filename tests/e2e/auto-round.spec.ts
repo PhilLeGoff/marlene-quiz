@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { joinWithSelfie } from "./helpers";
 const origin = process.env.TEST_BASE_URL ?? "http://127.0.0.1:3105";
 const unique = (name: string) => `${name} ${crypto.randomUUID().slice(0, 4)}`;
 test("a round closes and scores itself once every guest has answered", async ({
@@ -30,10 +31,7 @@ test("a round closes and scores itself once every guest has answered", async ({
       const page = await (
         await browser.newContext({ viewport: { width: 390, height: 844 } })
       ).newPage();
-      await page.goto("/");
-      await page.getByLabel("Ton petit nom").fill(unique(name));
-      await page.getByRole("button", { name: /Rejoindre la fête/ }).click();
-      await page.getByRole("button", { name: "Plus tard" }).click();
+      await joinWithSelfie(page, unique(name));
       return page;
     }),
   );

@@ -7,6 +7,7 @@ import {
   type BrowserContext,
   type Page,
 } from "@playwright/test";
+import { takeSelfie } from "./helpers";
 const origin = process.env.TEST_BASE_URL ?? "http://127.0.0.1:3105";
 const PHONE = { width: 390, height: 844 },
   TV = { width: 1920, height: 1080 };
@@ -50,7 +51,7 @@ async function setup(browser: Browser, photos: string[] | null) {
   });
   const phone = await phoneCtx.newPage();
   await phone.goto("/play");
-  await phone.getByRole("button", { name: "Plus tard" }).click();
+  await takeSelfie(phone);
   await expect(phone.getByText("Tu es sur la liste !")).toBeVisible();
   const projector = await (
     await withPhotos(await browser.newContext({ viewport: TV }))

@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { joinWithSelfie } from "./helpers";
 const origin = process.env.TEST_BASE_URL ?? "http://127.0.0.1:3105";
 test("guests answer Marlène’s height with a slider", async ({ browser }) => {
   const host = await browser.newContext();
@@ -32,12 +33,7 @@ test("guests answer Marlène’s height with a slider", async ({ browser }) => {
     viewport: { width: 390, height: 844 },
   });
   const phone = await phoneCtx.newPage();
-  await phone.goto("/");
-  await phone
-    .getByLabel("Ton petit nom")
-    .fill("Slider " + crypto.randomUUID().slice(0, 4));
-  await phone.getByRole("button", { name: /Rejoindre la fête/ }).click();
-  await phone.getByRole("button", { name: "Plus tard" }).click();
+  await joinWithSelfie(phone, "Slider " + crypto.randomUUID().slice(0, 4));
   const r = await post({ action: "open" });
   expect(r.status(), await r.text()).toBe(200);
   const slider = phone.getByRole("slider", { name: /Ton estimation/ });

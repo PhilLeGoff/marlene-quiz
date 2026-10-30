@@ -1,4 +1,5 @@
 import { test, expect, type APIRequestContext } from "@playwright/test";
+import { joinWithSelfie } from "./helpers";
 async function api(
   ctx: APIRequestContext,
   as: string,
@@ -166,11 +167,7 @@ test("complete multiplayer game: all answer types, secrecy, real race, anonymous
   }
   const gp = await guest.newPage();
   const start = Date.now();
-  await gp.goto(`/?room=${room}`);
-  await gp
-    .getByLabel("Ton petit nom")
-    .fill(`Alice ${Date.now().toString(36).slice(-5)}`);
-  await gp.getByRole("button", { name: "Rejoindre la fête" }).click();
+  await joinWithSelfie(gp, `Alice ${Date.now().toString(36).slice(-5)}`);
   await expect(
     gp.getByRole("heading", { name: "Tu es sur la liste !" }),
   ).toBeVisible();

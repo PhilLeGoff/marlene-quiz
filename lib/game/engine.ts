@@ -514,7 +514,8 @@ export function reduce(
         s.players.push({
           id: actor.playerId,
           nickname,
-          avatar: Math.max(0, Math.min(7, Number(cmd.avatar) || 0)),
+          // Drawn fallback for anyone without a selfie, dealt in join order; never chosen by the client.
+          avatar: s.players.length % 8,
           joinedAt: now,
           active: true,
           role: actor.role,

@@ -22,13 +22,12 @@ import { isMarleneName } from "@/lib/game/vip";
 export function Home() {
   const c = useParty();
   const [nickname, setNickname] = useState(""),
-    [avatar, setAvatar] = useState(0),
     [rules, setRules] = useState(false);
   async function join(e: React.FormEvent) {
     e.preventDefault();
     // Her name, however it's typed, is reserved: send her to her PIN pad instead.
     if (isMarleneName(nickname)) return location.assign("/marlene?reconnue=1");
-    if (await c.command("join", { nickname, avatar })) location.assign("/play");
+    if (await c.command("join", { nickname })) location.assign("/play");
   }
   return (
     <div className="home-page">
@@ -127,28 +126,6 @@ export function Home() {
                         onChange={(e) => setNickname(e.target.value)}
                       />
                     </label>
-                  </div>
-                  <div
-                    className="avatar-picker"
-                    aria-label="Choisis ton avatar"
-                  >
-                    {Array.from({ length: 6 }, (_, i) => (
-                      <button
-                        type="button"
-                        key={i}
-                        aria-label={`Avatar ${i + 1}`}
-                        aria-pressed={avatar === i}
-                        onClick={() => setAvatar(i)}
-                        className={avatar === i ? "selected" : ""}
-                      >
-                        <Avatar index={i} size={36} />
-                        {avatar === i && (
-                          <span>
-                            <Check size={10} />
-                          </span>
-                        )}
-                      </button>
-                    ))}
                   </div>
                   {c.error && (
                     <p className="error" role="alert">
