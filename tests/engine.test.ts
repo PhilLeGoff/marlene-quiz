@@ -138,8 +138,8 @@ describe("scoring and normalization", () => {
     p = run(p, guest(), "submit", { value: 168 });
     p = run(p, guest("bob"), "submit", { value: 171 });
     p = run(p, guest("carol"), "submit", { value: 200 });
-    p = run(p, admin, "close");
-    p = run(p, admin, "reveal");
+    // Every guest has answered, so the round has already closed and been scored.
+    expect(p.phase).toBe("reveal");
     const score = (id: string) => leaderboard(p).find((x) => x.id === id)!;
     expect(score("alice")).toMatchObject({ score: 5, correctCount: 1 });
     expect(score("bob")).toMatchObject({ score: 2, correctCount: 0 });
@@ -162,8 +162,8 @@ describe("scoring and normalization", () => {
     p = run(p, guest("bob"), "submit", {
       value: ["Elle a fait pipi", "Elle a sauté du balcon en culotte"],
     });
-    p = run(p, admin, "close");
-    p = run(p, admin, "reveal");
+    // Every guest has answered, so the round has already closed and been scored.
+    expect(p.phase).toBe("reveal");
     const [alice, bob] = ["alice", "bob"].map((id) =>
       leaderboard(p).find((x) => x.id === id)!,
     );
@@ -291,7 +291,8 @@ describe("authorization and hidden answers", () => {
     },
   );
   it("rejects reveal before close and refuses unconfirmed keys", () => {
-    const p = run(party(), admin, "open");
+    // The height has no key until Marlène enters it.
+    const p = run(party("q5"), admin, "open");
     expect(() => run(p, admin, "reveal")).toThrow("Ferme");
     expect(() => run(run(p, admin, "close"), admin, "reveal")).toThrow(
       "Confirme",
