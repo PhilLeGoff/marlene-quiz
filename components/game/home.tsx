@@ -18,6 +18,7 @@ import {
 import { Brand, CakeArt, Confetti, Avatar } from "./art";
 import { useParty } from "./use-party";
 import { Modal } from "./modal";
+import { isMarleneName } from "@/lib/game/vip";
 export function Home() {
   const c = useParty();
   const [nickname, setNickname] = useState(""),
@@ -25,6 +26,8 @@ export function Home() {
     [rules, setRules] = useState(false);
   async function join(e: React.FormEvent) {
     e.preventDefault();
+    // Her name, however it's typed, is reserved: send her to her PIN pad instead.
+    if (isMarleneName(nickname)) return location.assign("/marlene?reconnue=1");
     if (await c.command("join", { nickname, avatar })) location.assign("/play");
   }
   return (

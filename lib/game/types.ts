@@ -126,6 +126,9 @@ export type Party = {
   sessions: Record<string, Session>;
   requests: string[];
   credentials: { admin: string; marlene: string };
+  // Marlène's VIP sign-in code. Server-only: view() never copies it.
+  // Missing on parties stored before it existed (see applySuppliedAnswers).
+  vipPin?: string;
   consent: boolean;
   consentAt: number;
   revealAllowed: boolean;

@@ -116,14 +116,19 @@
       "duration": 45,
       "tolerance": 0,
       "unit": "cm",
-      "note": "Marlène renseigne sa taille en privé. Tolérance configurable.",
+      "note": "Marlène renseigne sa taille en privé. 5 points pile poil, un de moins par cm d’écart.",
       "aliases": [],
       "bonus": 5,
       "attempts": 3,
       "sensitive": false,
       "media": [],
       "clipStart": 0,
-      "clipEnd": 30
+      "clipEnd": 30,
+      "slider": {
+        "min": 140,
+        "max": 200,
+        "step": 1
+      }
     },
     {
       "id": "q6a",
@@ -234,27 +239,6 @@
       "tolerance": 0,
       "unit": "",
       "note": "Bonne combinaison fournie : chaussettes + short + t-shirt. Pyjama intégral et bonnet de nuit sont des propositions pièges modifiables.",
-      "aliases": [],
-      "bonus": 5,
-      "attempts": 3,
-      "sensitive": false,
-      "media": [],
-      "clipStart": 0,
-      "clipEnd": 30
-    },
-    {
-      "id": "q8",
-      "source": 8,
-      "title": "Quel est le code PIN de Marlène ?",
-      "kind": "pin",
-      "options": [],
-      "generated": [],
-      "enabled": true,
-      "confirmed": true,
-      "duration": 60,
-      "tolerance": 0,
-      "unit": "",
-      "note": "BONUS : code de jeu à 6 chiffres, identique au code de l’espace VIP. Jamais le code d’un appareil réel.",
       "aliases": [],
       "bonus": 5,
       "attempts": 3,
@@ -508,9 +492,6 @@
       "answers": ["Jive Me — 120 BPM"],
       "text": "120 BPM",
       "aliases": ["Jive Me", "Jive Me 120 BPM"]
-    },
-    "q8": {
-      "text": "123456"
     }
   }
 }

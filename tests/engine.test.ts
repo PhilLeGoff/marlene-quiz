@@ -52,6 +52,12 @@ function opened(id = "q3") {
     });
   return run(p, admin, "open");
 }
+// A host-made "Code mystère" round with the fictional code 8246.
+function pinParty() {
+  let p = party("q3");
+  p = run(p, admin, "edit", { questionId: "q3", patch: { kind: "pin" } });
+  return run(p, admin, "private", { questionId: "q3", text: "8246" });
+}
 const stroke: Stroke = {
   id: "test-stroke",
   color: "#392938",
@@ -63,20 +69,30 @@ const stroke: Stroke = {
 };
 describe("seed bank", () => {
   it("keeps supplied order and splits the blind test into three rounds", () => {
-    expect(seedQuestions).toHaveLength(19);
+    // q8 (Marlène's PIN as a bonus question) was removed: the joke is in her login.
+    expect(seedQuestions).toHaveLength(18);
     expect(seedQuestions.map((q) => q.source)).toEqual([
-      1, 2, 3, 4, 5, 6, 6, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
+      1, 2, 3, 4, 5, 6, 6, 6, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17,
     ]);
   });
   it("never guesses unknown personal keys", () => {
     const p = createParty("123456", { admin: "x", marlene: "y" });
-    expect(Object.keys(p.secrets).sort()).toEqual(["q6a", "q6b", "q6c", "q7"]);
-    expect(seedQuestions.filter((q) => q.confirmed).map((q) => q.id)).toEqual([
+    const supplied = [
+      "q1",
+      "q2",
+      "q3",
+      "q4",
       "q6a",
       "q6b",
       "q6c",
       "q7",
-    ]);
+      "q10",
+      "q13",
+    ];
+    expect(Object.keys(p.secrets).sort()).toEqual([...supplied].sort());
+    expect(seedQuestions.filter((q) => q.confirmed).map((q) => q.id)).toEqual(
+      supplied,
+    );
   });
   it("answers the height with a slider, also in parties created before it", () => {
     const p = createParty("123456", { admin: "x", marlene: "y" });
@@ -92,7 +108,7 @@ describe("seed bank", () => {
   it("retains seven choices and protects optional rounds", () => {
     expect(seedQuestions.find((q) => q.id === "q4")?.options).toHaveLength(7);
     expect(seedQuestions.find((q) => q.id === "q10")?.options).toHaveLength(7);
-    for (const id of ["q8", "q11", "q12"])
+    for (const id of ["q11", "q12"])
       expect(seedQuestions.find((q) => q.id === id)?.enabled).toBe(false);
   });
 });
@@ -239,7 +255,7 @@ describe("authorization and hidden answers", () => {
       nickname: "Marlène",
     });
     expect(() => run(p, guest(), "join", { nickname: "marlene" })).toThrow(
-      "déjà pris",
+      "réservé à Marlène",
     );
     expect(leaderboard(p)).toHaveLength(0);
     p = run(p, guest(), "join", { nickname: "A" });
@@ -346,12 +362,10 @@ describe("submissions, timers, drawing and winner races", () => {
     expect(p.phase).toBe("submissions_closed");
   });
   it("keeps several-try rounds open after everyone's first answer", () => {
-    let p = party("q8");
-    p = run(p, admin, "edit", { questionId: "q8", patch: { enabled: true } });
-    p = run(p, admin, "private", { questionId: "q8", text: "824613" });
+    let p = pinParty();
     p = run(p, admin, "open");
-    p = run(p, guest(), "submit", { value: "111111" });
-    p = run(p, guest("bob"), "submit", { value: "222222" });
+    p = run(p, guest(), "submit", { value: "1111" });
+    p = run(p, guest("bob"), "submit", { value: "2222" });
     expect(p.phase).toBe("question_open");
   });
   it("rejects duplicate and expired submissions", () => {
@@ -419,10 +433,7 @@ describe("submissions, timers, drawing and winner races", () => {
     expect(p.events).toHaveLength(0);
   });
   it("limits PIN attempts and uses a fictional secret", () => {
-    let p = party("q8");
-    p = run(p, admin, "edit", { questionId: "q8", patch: { enabled: true } });
-    p = run(p, admin, "private", { questionId: "q8", text: "8246" });
-    p = run(p, admin, "open");
+    let p = run(pinParty(), admin, "open");
     for (let i = 0; i < 3; i++)
       p = run(p, guest(), "submit", { value: "1111" });
     expect(() => run(p, guest(), "submit", { value: "8246" })).toThrow(

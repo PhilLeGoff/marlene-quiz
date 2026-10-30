@@ -40,6 +40,8 @@ import { AuthScreen } from "./auth-screen";
 import { Avatar, EmptyParty } from "./art";
 import { QuestionEditor } from "./editor";
 import { PrivateForm } from "./private-form";
+import { VipPinForm } from "./vip-pin-form";
+import { MARLENE_PIN } from "@/lib/game/vip";
 import { Modal } from "./modal";
 import { DrawingCanvas, DrawingPreview } from "./canvas";
 import type { Question } from "@/lib/game/types";
@@ -668,10 +670,17 @@ export function Admin() {
                 <div className="divider" />
                 <h3>Questions facultatives</h3>
                 <p className="small-text muted">
-                  Le PIN fictif et le défi photo sont désactivés au départ. La
-                  manche intime requiert le consentement explicite de Marlène ;
-                  elle peut le retirer à tout instant.
+                  Le défi photo est désactivé au départ. La manche intime
+                  requiert le consentement explicite de Marlène ; elle peut le
+                  retirer à tout instant.
                 </p>
+                <div className="divider" />
+                <h3>Code VIP de Marlène</h3>
+                <p className="small-text muted" style={{ marginBottom: 14 }}>
+                  Marlène entre ce code pour ouvrir son espace (par défaut{" "}
+                  {MARLENE_PIN}). Le code actuel n’est jamais affiché ici.
+                </p>
+                <VipPinForm c={c} />
               </section>
               <section className="danger-zone">
                 <h3>On remet les compteurs à zéro ?</h3>
