@@ -268,8 +268,9 @@ export function Home() {
           </div>
           <p>
             Les défis dessin et le premier mot trouvé au Pictionary rapportent{" "}
-            <strong>+5 points</strong>. Les réponses multiples doivent être
-            toutes justes. Les questions facultatives se passent sans pénalité.
+            <strong>+5 points</strong>. Aux questions à réponses multiples,
+            chaque case cochée compte : +1 si elle est juste, −1 sinon. Les
+            questions facultatives se passent sans pénalité.
           </p>
           <p>
             En cas d’égalité : bonnes réponses, puis temps de réponse cumulé.

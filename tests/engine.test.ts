@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { createParty, seedQuestions } from "../lib/game/seed";
+import {
+  applySuppliedAnswers,
+  createParty,
+  seedQuestions,
+} from "../lib/game/seed";
 import {
   correct,
   leaderboard,
@@ -74,6 +78,17 @@ describe("seed bank", () => {
       "q7",
     ]);
   });
+  it("answers the height with a slider, also in parties created before it", () => {
+    const p = createParty("123456", { admin: "x", marlene: "y" });
+    const height = (x: Party) => x.questions.find((q) => q.id === "q5")!;
+    expect(height(p).slider).toEqual({ min: 140, max: 200, step: 1 });
+    expect(p.questions.find((q) => q.id === "q9")!.slider).toBeUndefined();
+    delete height(p).slider;
+    const upgraded = applySuppliedAnswers(p);
+    expect(height(upgraded).slider).toEqual({ min: 140, max: 200, step: 1 });
+    expect(height(p).slider).toBeUndefined();
+    expect(applySuppliedAnswers(upgraded)).toBe(upgraded);
+  });
   it("retains seven choices and protects optional rounds", () => {
     expect(seedQuestions.find((q) => q.id === "q4")?.options).toHaveLength(7);
     expect(seedQuestions.find((q) => q.id === "q10")?.options).toHaveLength(7);
@@ -106,6 +121,60 @@ describe("scoring and normalization", () => {
       false,
     );
     q.confirmed = false;
+  });
+  it("scores the height slider 5 for exact, one less per cm off, below zero", () => {
+    let p = run(party("q5"), star, "private", {
+      questionId: "q5",
+      number: 168,
+    });
+    p.players.push({
+      id: "carol",
+      nickname: "Carol",
+      avatar: 2,
+      active: true,
+      joinedAt: 1002,
+    });
+    p = run(p, admin, "open");
+    p = run(p, guest(), "submit", { value: 168 });
+    p = run(p, guest("bob"), "submit", { value: 171 });
+    p = run(p, guest("carol"), "submit", { value: 200 });
+    p = run(p, admin, "close");
+    p = run(p, admin, "reveal");
+    const score = (id: string) => leaderboard(p).find((x) => x.id === id)!;
+    expect(score("alice")).toMatchObject({ score: 5, correctCount: 1 });
+    expect(score("bob")).toMatchObject({ score: 2, correctCount: 0 });
+    expect(score("carol").score).toBe(-27);
+    expect(view(p, guest("bob"), 0).result?.reason).toBe("3 cm d’écart");
+  });
+  it("scores multi select per ticked option, +1 right and −1 wrong", () => {
+    let p = run(party(), star, "private", {
+      questionId: "q3",
+      answers: ["Elle a fait pipi", "Elle a sauté du balcon en culotte"],
+    });
+    p = run(p, admin, "open");
+    p = run(p, guest(), "submit", {
+      value: [
+        "Elle a fait pipi",
+        "Elle a vomi sur le tapis",
+        "Elle a dormi toute la nuit dehors",
+      ],
+    });
+    p = run(p, guest("bob"), "submit", {
+      value: ["Elle a fait pipi", "Elle a sauté du balcon en culotte"],
+    });
+    p = run(p, admin, "close");
+    p = run(p, admin, "reveal");
+    const [alice, bob] = ["alice", "bob"].map((id) =>
+      leaderboard(p).find((x) => x.id === id)!,
+    );
+    expect(alice.score).toBe(-1);
+    expect(alice.correctCount).toBe(0);
+    expect(bob.score).toBe(2);
+    expect(bob.correctCount).toBe(1);
+    expect(view(p, guest(), 0).result).toMatchObject({
+      delta: -1,
+      reason: "1 bonne réponse, 2 mauvaises réponses",
+    });
   });
   it("supports numeric exact and tolerance", () => {
     const q = { ...seedQuestions[4], confirmed: true, tolerance: 2 };

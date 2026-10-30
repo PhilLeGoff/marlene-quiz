@@ -654,6 +654,7 @@ export function Admin() {
                 <h2>La fête, en quelques chiffres</h2>
                 <p className="notice">
                   Bonne réponse : +1 · Mauvaise : −1 · Pas de réponse : 0.
+                  Réponses multiples : +1 par case juste, −1 par case fausse.
                   Dessin gagnant et premier mot trouvé : +5. Les scores négatifs
                   sont possibles.
                 </p>

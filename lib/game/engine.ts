@@ -156,7 +156,22 @@ function scoreRound(s: Party, now: number) {
   for (const sub of s.submissions[s.roundId] ?? []) {
     if (sub.moderated) continue;
     const result = correct(q, s.secrets[q.id], sub.value);
-    if (result !== null)
+    if (result === null) continue;
+    if (q.slider && typeof sub.value === "number") {
+      const { delta, reason } = sliderScore(
+        q.slider,
+        q.unit,
+        s.secrets[q.id].number!,
+        sub.value,
+      );
+      award(s, sub.playerId, delta, now, reason, result, sub.elapsed);
+    } else if (MULTI_SELECT.includes(q.kind) && Array.isArray(sub.value)) {
+      const { delta, reason } = optionScore(
+        s.secrets[q.id].answers!,
+        sub.value as string[],
+      );
+      award(s, sub.playerId, delta, now, reason, result, sub.elapsed);
+    } else
       award(
         s,
         sub.playerId,
@@ -167,6 +182,39 @@ function scoreRound(s: Party, now: number) {
         sub.elapsed,
       );
   }
+}
+// Slider rounds reward closeness: 5 points for the exact value, one less per step off
+// (per cm for the height), going negative for wild guesses.
+export const SLIDER_POINTS = 5;
+export function sliderScore(
+  slider: NonNullable<Question["slider"]>,
+  unit: string,
+  key: number,
+  value: number,
+) {
+  const off = Math.round(Math.abs(value - key) / slider.step);
+  return {
+    delta: SLIDER_POINTS - off,
+    reason: off ? `${off * slider.step} ${unit} d’écart` : "Pile poil !",
+  };
+}
+// Multi-select rounds score each ticked option: +1 if it is a right answer, −1 if not.
+// Leaving an option unticked costs nothing; `correct` still means the exact set, for tie-breaks.
+const MULTI_SELECT: Question["kind"][] = ["multi", "outfit", "photo"];
+export function optionScore(answers: string[], picked: string[]) {
+  const right = picked.filter((v) => answers.includes(v)).length,
+    wrong = picked.length - right;
+  const s = (n: number) => (n > 1 ? "s" : "");
+  return {
+    delta: right - wrong,
+    reason:
+      [
+        right && `${right} bonne${s(right)} réponse${s(right)}`,
+        wrong && `${wrong} mauvaise${s(wrong)} réponse${s(wrong)}`,
+      ]
+        .filter(Boolean)
+        .join(", ") || "Aucune réponse cochée",
+  };
 }
 export function validateStrokes(value: unknown): Stroke[] {
   must(Array.isArray(value) && value.length <= 400, "Dessin trop volumineux.");
@@ -276,6 +324,7 @@ function publicQuestion(q: Question): Question {
     media: q.media,
     clipStart: q.clipStart,
     clipEnd: q.clipEnd,
+    slider: q.slider,
   };
 }
 export function view(

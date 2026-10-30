@@ -82,7 +82,7 @@ export function Answer({ data, c }: { data: View; c: PartyClient }) {
         <p className="answer-helper">
           {single
             ? "Une seule réponse. Fais confiance à ton instinct."
-            : "Sélectionne toutes les bonnes réponses. Le compte doit être exact."}
+            : "Plusieurs réponses possibles : +1 par bonne réponse cochée, −1 par mauvaise."}
         </p>
         <button
           className="btn primary answer-submit"
@@ -138,6 +138,52 @@ export function Answer({ data, c }: { data: View; c: PartyClient }) {
         </p>
       </div>
     );
+  if (q.kind === "number" && q.slider) {
+    const { min, max, step } = q.slider;
+    const value =
+      text === "" ? Math.round((min + max) / 2 / step) * step : Number(text);
+    return (
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          void submit(value);
+        }}
+        className="stack"
+      >
+        <label className="slider-answer">
+          Ton estimation
+          <output aria-hidden="true">
+            {value} <small>{q.unit}</small>
+          </output>
+          <input
+            type="range"
+            min={min}
+            max={max}
+            step={step}
+            value={value}
+            aria-label="Ton estimation"
+            aria-valuetext={`${value} ${q.unit}`}
+            onChange={(e) => setText(e.target.value)}
+          />
+          <span className="slider-bounds" aria-hidden="true">
+            <span>
+              {min} {q.unit}
+            </span>
+            <span>
+              {max} {q.unit}
+            </span>
+          </span>
+        </label>
+        <p className="answer-helper">
+          Pile poil : +5 points. Chaque {step === 1 ? "" : `${step} `}
+          {q.unit} d’écart en retire un, et ça peut descendre sous zéro.
+        </p>
+        <button className="btn primary" disabled={c.busy}>
+          {c.busy ? "Envoi…" : "Envoyer ma réponse"} <Send size={18} />
+        </button>
+      </form>
+    );
+  }
   return (
     <form
       onSubmit={(e) => {
