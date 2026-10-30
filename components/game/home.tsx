@@ -19,7 +19,10 @@ import { Brand, CakeArt, Confetti, Avatar } from "./art";
 import { useParty } from "./use-party";
 import { Modal } from "./modal";
 import { isMarleneName } from "@/lib/game/vip";
+import { MarleneSlideshow, useMarlenePhotos } from "./marlene-photos";
 export function Home() {
+  // With photos of Marlène, her polaroids take the cake's place; the cake stays as the fallback.
+  const photos = useMarlenePhotos().length > 0;
   const c = useParty();
   const [nickname, setNickname] = useState(""),
     [avatar, setAvatar] = useState(0),
@@ -101,8 +104,14 @@ export function Home() {
               </p>
             </div>
           </div>
-          <div className="hero-right">
-            <CakeArt />
+          <div className={`hero-right ${photos ? "with-photos" : ""}`}>
+            {photos ? (
+              <div className="hero-photos">
+                <MarleneSlideshow variant="hero" />
+              </div>
+            ) : (
+              <CakeArt />
+            )}
             <div className="join-ticket">
               <div className="ticket-top">
                 <span className="small-caps">TON INVITATION À LA FÊTE</span>

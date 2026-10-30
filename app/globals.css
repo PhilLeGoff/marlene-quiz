@@ -2817,3 +2817,33 @@ dialog.native-modal::backdrop {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+/* On the landing page, Marlène's polaroids take the cake's place above the invitation. */
+.hero-right.with-photos {
+  --hero-photo-w: clamp(160px, 13vw, 210px);
+  /* Room for the whole polaroid, so the ticket never covers it. */
+  padding-top: calc(var(--hero-photo-w) * 1.2 + 24px);
+}
+.hero-photos {
+  position: absolute;
+  top: -16px;
+  left: 0;
+  right: 0;
+}
+.marlene-photos.hero {
+  --w: var(--hero-photo-w);
+  margin: 0 auto;
+}
+/* On a phone the invitation comes first; the album waits just below it. */
+@media (max-width: 700px) {
+  .hero-right.with-photos {
+    --hero-photo-w: min(230px, 62vw);
+    display: flex;
+    flex-direction: column;
+    padding-top: 0;
+  }
+  .hero-right.with-photos .hero-photos {
+    position: static;
+    order: 1;
+    margin-top: 22px;
+  }
+}
