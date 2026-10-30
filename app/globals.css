@@ -2558,3 +2558,262 @@ dialog.native-modal::backdrop {
 .join-fields.name-only {
   grid-template-columns: minmax(0, 1fr);
 }
+/* Polaroids of Marlène while guests wait (components/game/marlene-photos.tsx). */
+.marlene-photos {
+  --w: min(240px, 66vw);
+  position: relative;
+  width: var(--w);
+  height: calc(var(--w) * 1.2 + 24px);
+  margin: 26px auto 4px;
+  pointer-events: none;
+  user-select: none;
+}
+.marlene-photos.tv {
+  --w: clamp(220px, 21vw, 360px);
+  margin: 0 auto;
+}
+.mp-card {
+  position: absolute;
+  inset: 12px 0 auto;
+  transform: rotate(var(--tilt));
+  transition:
+    transform 0.8s ease,
+    filter 0.8s ease;
+}
+.mp-card.top {
+  z-index: 2;
+  animation: mp-drop 0.95s cubic-bezier(0.22, 1.2, 0.36, 1) both;
+}
+.mp-card.below {
+  z-index: 1;
+  transform: rotate(calc(var(--tilt) * -1.4)) translate(-4%, 3%) scale(0.95);
+  filter: saturate(0.85) brightness(0.97);
+}
+.mp-float {
+  position: relative;
+  background: #fff;
+  border: 1.5px solid var(--ink);
+  border-radius: 6px;
+  padding: 7% 7% 0;
+  box-shadow: 0 6px 0 var(--ink);
+}
+.mp-card.top .mp-float {
+  animation: mp-float 5.5s ease-in-out 0.95s infinite alternate;
+}
+.mp-tape {
+  position: absolute;
+  top: -11px;
+  left: 50%;
+  width: 40%;
+  height: 22px;
+  transform: translateX(-50%) rotate(-3deg);
+  background: var(--butter);
+  opacity: 0.88;
+  border-radius: 2px;
+  box-shadow: 0 1px 0 #39293822;
+  z-index: 1;
+}
+.mp-card:nth-child(odd) .mp-tape {
+  background: var(--mint);
+  transform: translateX(-50%) rotate(4deg);
+}
+.mp-photo {
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--lilac);
+}
+.mp-photo img {
+  display: block;
+  width: 100%;
+  /* Tailwind's preflight sets `height: auto` on images. */
+  height: 100%;
+  max-width: none;
+  object-fit: cover;
+  object-position: center 30%;
+  animation: mp-kenburns-right 7s ease-out both;
+}
+.mp-photo.zoom-left img {
+  animation-name: mp-kenburns-left;
+}
+.mp-caption {
+  display: block;
+  padding: 0.55em 0.3em 0.75em;
+  text-align: center;
+  font-family: var(--heading);
+  font-size: calc(var(--w) * 0.068);
+  line-height: 1.2;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mp-confetti i {
+  position: absolute;
+  z-index: 3;
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+  background: var(--coral);
+  animation: mp-twinkle 2.6s ease-in-out infinite alternate;
+}
+.marlene-photos.tv .mp-confetti i {
+  width: 16px;
+  height: 16px;
+}
+.mp-confetti i:nth-child(1) {
+  top: 2%;
+  left: -5%;
+  rotate: 20deg;
+}
+.mp-confetti i:nth-child(2) {
+  top: 12%;
+  right: -6%;
+  background: var(--lilac);
+  border-radius: 50%;
+  animation-delay: -0.6s;
+}
+.mp-confetti i:nth-child(3) {
+  top: 45%;
+  left: -7%;
+  background: var(--butter);
+  animation-delay: -1.2s;
+}
+.mp-confetti i:nth-child(4) {
+  top: 58%;
+  right: -5%;
+  background: var(--mint);
+  rotate: 45deg;
+  animation-delay: -0.3s;
+}
+.marlene-photos .mp-confetti i:nth-child(5) {
+  bottom: 4%;
+  left: 6%;
+  width: 8px;
+  height: 8px;
+  background: var(--lilac);
+  border-radius: 50%;
+  animation-delay: -1.8s;
+}
+.marlene-photos .mp-confetti i:nth-child(6) {
+  bottom: 0;
+  right: 10%;
+  width: 7px;
+  height: 15px;
+  animation-delay: -0.9s;
+}
+.marlene-photos .mp-confetti i:nth-child(7) {
+  top: -2%;
+  right: 18%;
+  width: 8px;
+  height: 8px;
+  background: var(--mint);
+  border-radius: 50%;
+  animation-delay: -2.1s;
+}
+.marlene-photos .mp-confetti i:nth-child(8) {
+  top: 30%;
+  right: -9%;
+  width: 7px;
+  height: 14px;
+  background: var(--butter);
+  animation-delay: -1.5s;
+}
+.marlene-photos .mp-confetti i:nth-child(9) {
+  top: 80%;
+  left: -4%;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  animation-delay: -0.4s;
+}
+@keyframes mp-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-34px) rotate(calc(var(--tilt) - 16deg)) scale(1.12);
+  }
+  55% {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    transform: rotate(var(--tilt));
+  }
+}
+@keyframes mp-float {
+  from {
+    transform: translateY(0) rotate(0deg);
+  }
+  to {
+    transform: translateY(-7px) rotate(1.5deg);
+  }
+}
+@keyframes mp-kenburns-right {
+  from {
+    transform: scale(1.02);
+  }
+  to {
+    transform: scale(1.16) translate(3%, -2%);
+  }
+}
+@keyframes mp-kenburns-left {
+  from {
+    transform: scale(1.02);
+  }
+  to {
+    transform: scale(1.16) translate(-3%, -2%);
+  }
+}
+@keyframes mp-twinkle {
+  from {
+    translate: 0 0;
+    scale: 1;
+    opacity: 1;
+  }
+  to {
+    translate: 0 -8px;
+    scale: 0.7;
+    opacity: 0.55;
+  }
+}
+@keyframes mp-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+/* No drop, drift or zoom: the photos just crossfade, slowly. */
+@media (prefers-reduced-motion: reduce) {
+  .marlene-photos *,
+  .marlene-photos .mp-card.top .mp-float {
+    animation: none !important;
+  }
+  .marlene-photos .mp-card.top {
+    animation: mp-fade 1.6s ease both !important;
+  }
+}
+/* On the projector, the album sits beside the open question. */
+.present-stage {
+  display: contents;
+}
+.present-stage.album {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4vw;
+}
+.present-stage.album .answer-grid {
+  margin: 10px auto 30px;
+}
+/* The grid is narrower beside the album: keep long answers on whole words. */
+.present-stage.album .answer-option {
+  font-size: clamp(18px, 1.6vw, 28px);
+  min-height: 110px;
+}
+@media (max-width: 900px) {
+  .present-stage.album {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

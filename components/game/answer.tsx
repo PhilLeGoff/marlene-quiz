@@ -7,6 +7,7 @@ import { DrawingCanvas, DrawingPreview } from "./canvas";
 import { Outfit } from "./shared";
 import { PinPad } from "./pin-pad";
 import { PIN_LENGTH } from "@/lib/game/vip";
+import { MarleneSlideshow } from "./marlene-photos";
 export function Answer({ data, c }: { data: View; c: PartyClient }) {
   const q = data.question!;
   const [selected, setSelected] = useState<string[]>([]),
@@ -35,13 +36,17 @@ export function Answer({ data, c }: { data: View; c: PartyClient }) {
             fallback={data.mySubmission?.value as Stroke[]}
           />
         )}
+        <MarleneSlideshow />
       </div>
     );
   if (expired)
     return (
-      <p className="notice">
-        Driiiing ! Le temps est écoulé. L’hôte prépare la suite.
-      </p>
+      <>
+        <p className="notice">
+          Driiiing ! Le temps est écoulé. L’hôte prépare la suite.
+        </p>
+        <MarleneSlideshow />
+      </>
     );
   const single = q.kind === "choice" || q.kind === "blind";
   const select = (v: string) =>
@@ -137,6 +142,9 @@ export function Answer({ data, c }: { data: View; c: PartyClient }) {
             ? "Bien joué ! Coffre déverrouillé."
             : `${attempts} / ${q.attempts} tentatives utilisées${attempts ? " · Ce n’est pas encore ça." : ""}`}
         </p>
+        {(attempts >= q.attempts || !!data.mySubmission?.correct) && (
+          <MarleneSlideshow />
+        )}
       </div>
     );
   if (q.kind === "number" && q.slider) {
