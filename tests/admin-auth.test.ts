@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { env } from "./cloudflare-env";
-import { actor, hash, requireAdminPassword } from "../lib/game/auth";
+import {
+  actor,
+  hash,
+  requireAdminPassword,
+  requireMarlenePin,
+} from "../lib/game/auth";
 import { createParty } from "../lib/game/seed";
 beforeEach(() => {
   env.ADMIN_PASSWORD = "unit-admin-secret";
@@ -64,6 +69,10 @@ describe("admin password gate", () => {
         role,
         playerId: role,
         expires: Date.now() + 60000,
+        // Marlène's session is bound to her PIN, not to the admin password.
+        ...(role === "marlene"
+          ? { marleneProof: await requireMarlenePin("1234") }
+          : {}),
       };
       const req = new Request("https://party.test", {
         headers: { cookie: `marlene_${role}=${role}` },

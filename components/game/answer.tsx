@@ -6,6 +6,7 @@ import type { PartyClient } from "./use-party";
 import { DrawingCanvas, DrawingPreview } from "./canvas";
 import { Outfit } from "./shared";
 import { PinPad } from "./pin-pad";
+import { PIN_LENGTH } from "@/lib/game/vip";
 export function Answer({ data, c }: { data: View; c: PartyClient }) {
   const q = data.question!;
   const [selected, setSelected] = useState<string[]>([]),
@@ -128,7 +129,7 @@ export function Answer({ data, c }: { data: View; c: PartyClient }) {
           disabled={
             expired || attempts >= q.attempts || !!data.mySubmission?.correct
           }
-          label="Le code mystère à 6 chiffres"
+          label={`Le code mystère à ${PIN_LENGTH} chiffres`}
           submitLabel="Essayer ce code"
         />
         <p className="attempts" role="status">

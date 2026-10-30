@@ -1,5 +1,5 @@
 import type { Party, Question, Secret } from "./types";
-import { MARLENE_PIN } from "./vip";
+import { MARLENE_PIN, isPin } from "./vip";
 const q = (
   source: number,
   title: string,
@@ -147,11 +147,6 @@ export const seedQuestions: Question[] = [
       note: "Bonne combinaison fournie : chaussettes + short + t-shirt. Pyjama intégral et bonnet de nuit sont des propositions pièges modifiables.",
     },
   ),
-  q(8, "Quel est le code PIN de Marlène ?", "pin", [], {
-    confirmed: true,
-    note: "BONUS : code de jeu à 6 chiffres, identique au code de l’espace VIP. Jamais le code d’un appareil réel.",
-    duration: 60,
-  }),
   q(9, "Quel est le temps d’écran de Marlène ?", "number", [], {
     unit: "minutes / jour",
     note: "Période : moyenne quotidienne des 7 derniers jours. Modifiable avant la manche.",
@@ -227,7 +222,6 @@ export const seedQuestions: Question[] = [
 ];
 // Private, server-only answer keys from the user's notes; never sent before reveal.
 export const suppliedAnswers: Record<string, Secret> = {
-  q8: { text: MARLENE_PIN },
   q1: { answers: ["Philippe", "Simone"] },
   q2: { answers: ["France", "Canada", "Indonésie", "Australie"] },
   q3: { answers: ["Elle a fait pipi", "Elle a sauté du balcon en culotte"] },
@@ -257,18 +251,52 @@ export const suppliedAnswers: Record<string, Secret> = {
     aliases: ["Jive Me", "Jive Me 120 BPM"],
   },
 };
+// Parties stored before the VIP code had its own field kept it as the answer to the
+// former bonus question q8 "Quel est le code PIN de Marlène ?" (6 digits, default
+// 123456). Move it to `vipPin`, then drop q8 as soon as it isn't being played.
+// A stored code that isn't 4 digits can't be typed on the 4-digit pad any more, so it
+// becomes the new default 1234. Score events already awarded for q8 are kept.
+function upgradeVipPin(original: Party): Party {
+  const legacy = original.questions.findIndex((q) => q.id === "q8");
+  const playing =
+    legacy >= 0 &&
+    legacy === original.index &&
+    !["lobby", "next_round", "finished"].includes(original.phase);
+  if (original.vipPin !== undefined && (legacy < 0 || playing)) return original;
+  const next = structuredClone(original);
+  if (next.vipPin === undefined) {
+    const stored = original.secrets.q8?.text;
+    next.vipPin = isPin(stored) ? stored : MARLENE_PIN;
+  }
+  if (legacy < 0 || playing) return next;
+  next.questions.splice(legacy, 1);
+  delete next.secrets.q8;
+  delete next.questionPresetVersions?.q8;
+  if (legacy < next.index) next.index--;
+  else if (legacy === next.index) {
+    // q8 was queued next: queue the following playable question instead, as "next" does.
+    const following = next.questions.findIndex(
+      (q, i) => i >= legacy && q.enabled && (!q.sensitive || next.consent),
+    );
+    if (next.phase === "next_round" && following >= 0) next.index = following;
+    else {
+      next.index = legacy - 1;
+      if (next.phase === "next_round") next.phase = "finished";
+    }
+  }
+  return next;
+}
 const presetVersion = "party-notes-2026-10-29-confirmed-v2";
 const presetIds = Object.keys(suppliedAnswers);
 // Upgrade existing parties once, retaining uploads, timers, players, scores and admin edits.
 // A currently running/revealed question is left untouched until the next round.
-export function applySuppliedAnswers(original: Party): Party {
+export function applySuppliedAnswers(stored: Party): Party {
+  const original = upgradeVipPin(stored);
   let next = original;
   const active = original.questions[original.index]?.id;
   for (const id of presetIds) {
-    const version = id === "q8" ? "vip-pin-2026-10-29-v1" : presetVersion;
-    if (original.questionPresetVersions?.[id] === version) continue;
+    if (original.questionPresetVersions?.[id] === presetVersion) continue;
     if (
-      id !== "q8" &&
       id === active &&
       !["lobby", "next_round", "finished"].includes(original.phase)
     )
@@ -286,7 +314,6 @@ export function applySuppliedAnswers(original: Party): Party {
         note: source.note,
         confirmed: true,
       });
-      if (id === "q8") target.enabled = true;
       next.secrets[id] = structuredClone(suppliedAnswers[id]);
     } else {
       target.options = [...new Set([...target.options, ...source.generated])];
@@ -295,7 +322,7 @@ export function applySuppliedAnswers(original: Party): Party {
       ];
       if (!target.confirmed) target.note = source.note;
     }
-    (next.questionPresetVersions ??= {})[id] = version;
+    (next.questionPresetVersions ??= {})[id] = presetVersion;
   }
   // Parties created before sliders existed answer the height by typing; give them the slider.
   for (const source of seedQuestions) {
@@ -326,10 +353,7 @@ export function createParty(
     questions: structuredClone(seedQuestions),
     secrets,
     questionPresetVersions: Object.fromEntries(
-      presetIds.map((id) => [
-        id,
-        id === "q8" ? "vip-pin-2026-10-29-v1" : presetVersion,
-      ]),
+      presetIds.map((id) => [id, presetVersion]),
     ),
     players: [],
     submissions: {},
@@ -338,6 +362,7 @@ export function createParty(
     sessions: {},
     requests: [],
     credentials,
+    vipPin: MARLENE_PIN,
     consent: false,
     consentAt: 0,
     revealAllowed: false,

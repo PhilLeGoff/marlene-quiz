@@ -3,6 +3,7 @@ import { useState } from "react";
 import { ArrowRight, Crown, Users } from "lucide-react";
 import type { PartyClient } from "./use-party";
 import { PinPad } from "./pin-pad";
+import { PIN_LENGTH } from "@/lib/game/vip";
 export function AuthScreen({
   c,
   star = false,
@@ -12,7 +13,15 @@ export function AuthScreen({
 }) {
   const [nickname, setNickname] = useState(""),
     [password, setPassword] = useState(""),
-    [pin, setPin] = useState("");
+    [pin, setPin] = useState(""),
+    // Set when the home page recognised her name. AuthScreen only renders on the
+    // client once the party has loaded, so reading the URL here can't break hydration.
+    [recognised] = useState(
+      () =>
+        star &&
+        typeof window !== "undefined" &&
+        new URLSearchParams(window.location.search).has("reconnue"),
+    );
   return (
     <div className="auth-card">
       <div className="panel">
@@ -20,10 +29,16 @@ export function AuthScreen({
           {star ? <Crown size={15} /> : <Users size={15} />}{" "}
           {star ? "ESPACE MARLÈNE" : "CÔTÉ COULISSES"}
         </span>
-        <h1>{star ? "La reine est arrivée." : "À toi de mener la danse."}</h1>
+        <h1>
+          {recognised
+            ? "On t’a reconnue, Marlène !"
+            : star
+              ? "La reine est arrivée."
+              : "À toi de mener la danse."}
+        </h1>
         <p>
           {star
-            ? "Ton royaume t’attend. Entre ton code à 6 chiffres pour retrouver ton espace privé."
+            ? `Ton royaume t’attend. Entre ton code à ${PIN_LENGTH} chiffres pour retrouver ton espace privé.`
             : "Entre ton nom et le mot de passe de l’administration pour ouvrir les coulisses."}
         </p>
         {star ? (

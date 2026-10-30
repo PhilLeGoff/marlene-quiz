@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Check, LockKeyhole, Save, SquarePen } from "lucide-react";
 import type { Question, Secret } from "@/lib/game/types";
 import type { PartyClient } from "./use-party";
+import { PIN_LENGTH } from "@/lib/game/vip";
 export function PrivateForm({
   q,
   c,
@@ -175,15 +176,15 @@ export function PrivateForm({
             {q.kind === "pictionary"
               ? "Ton mot ou ta phrase secrète"
               : q.kind === "pin"
-                ? "Code fictif à 6 chiffres (aussi utilisé pour l’accès VIP)"
+                ? `Code fictif à ${PIN_LENGTH} chiffres`
                 : "Ta réponse"}
             <input
               required
               type={q.kind === "pin" ? "password" : "text"}
               inputMode={q.kind === "pin" ? "numeric" : undefined}
-              pattern={q.kind === "pin" ? "[0-9]{6}" : undefined}
-              minLength={q.kind === "pin" ? 6 : undefined}
-              maxLength={q.kind === "pin" ? 6 : 500}
+              pattern={q.kind === "pin" ? `[0-9]{${PIN_LENGTH}}` : undefined}
+              minLength={q.kind === "pin" ? PIN_LENGTH : undefined}
+              maxLength={q.kind === "pin" ? PIN_LENGTH : 500}
               value={text}
               onChange={(e) => {
                 setSaved(false);

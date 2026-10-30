@@ -1,7 +1,7 @@
 import type { Actor, Party, Role } from "./types";
 import { GameError } from "./engine";
 import { config } from "./store";
-import { MARLENE_PIN } from "./vip";
+import { MARLENE_PIN, isPin } from "./vip";
 const enc = new TextEncoder();
 const hex = (bytes: ArrayBuffer) =>
   Array.from(new Uint8Array(bytes), (x) =>
@@ -35,7 +35,7 @@ export async function requireMarlenePin(value: unknown, pin = MARLENE_PIN) {
   let difference = 0;
   for (let i = 0; i < expected.length; i++)
     difference |= expected.charCodeAt(i) ^ given.charCodeAt(i);
-  if (typeof value !== "string" || !/^\d{6}$/.test(value) || difference !== 0)
+  if (!isPin(value) || difference !== 0)
     throw new GameError("Code PIN incorrect. Réessaie, Votre Majesté !", 401);
   return expected;
 }
@@ -64,7 +64,7 @@ export async function actor(
     if (!secret || s.adminProof !== (await hash(secret))) return null;
   }
   if (role === "marlene" && !identityOnly) {
-    const pin = p.secrets.q8?.text ?? MARLENE_PIN;
+    const pin = p.vipPin ?? MARLENE_PIN;
     if (s.marleneProof !== (await hash(`marlene-pin-v1:${pin}`))) return null;
   }
   return { role: s.role, playerId: s.playerId };

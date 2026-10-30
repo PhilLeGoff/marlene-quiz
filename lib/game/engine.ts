@@ -10,7 +10,7 @@ import type {
   View,
 } from "./types";
 import { OPEN, REVEALED } from "./types";
-import { MARLENE_NAME } from "./vip";
+import { PIN_LENGTH, isMarleneName, isPin, nicknameKey } from "./vip";
 export class GameError extends Error {
   constructor(
     message: string,
@@ -57,15 +57,7 @@ export function correct(
     (a) => normalize(a) === normalize(String(value)),
   );
 }
-export function nicknameKey(value: string) {
-  return value
-    .normalize("NFKC")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLocaleLowerCase("fr")
-    .replace(/\s+/g, " ")
-    .trim();
-}
+export { nicknameKey };
 // Not a `reduce` command: only /api/avatar may set a photo, after storing the uploaded image,
 // so a client can't point its avatar at another media ID (a drawing, a blind-test clip).
 export function setPhoto(
@@ -467,6 +459,7 @@ export function reduce(
       "allowReveal",
       "adjudicate",
       "grade",
+      "vipPin",
     ].includes(cmd.action)
   )
     must(isAdmin, "Cette action est réservée à l’hôte.", 403);
@@ -496,8 +489,7 @@ export function reduce(
         "Entre un nom de 1 à 24 caractères.",
       );
       must(
-        actor.role === "marlene" ||
-          nicknameKey(nickname) !== nicknameKey(MARLENE_NAME),
+        actor.role === "marlene" || !isMarleneName(nickname),
         "Ce prénom est réservé à Marlène. Choisis un autre petit nom.",
         409,
       );
@@ -617,10 +609,7 @@ export function reduce(
           "Réponse attendue : 1 à 500 caractères.",
         );
       if (q.kind === "pin")
-        must(
-          typeof value === "string" && /^\d{6}$/.test(value),
-          "Entre un code à 6 chiffres.",
-        );
+        must(isPin(value), `Entre un code à ${PIN_LENGTH} chiffres.`);
       const sub: Submission = {
         id: previous?.id ?? cmd.id,
         playerId: actor.playerId!,
@@ -760,8 +749,8 @@ export function reduce(
         );
         if (target.kind === "pin")
           must(
-            /^\d{6}$/.test(cmd.text),
-            "Utilise un code fictif de 6 chiffres.",
+            isPin(cmd.text),
+            `Utilise un code fictif de ${PIN_LENGTH} chiffres.`,
           );
         secret.text = cmd.text;
       }
@@ -1056,6 +1045,11 @@ export function reduce(
       );
       delete s.secrets[String(cmd.questionId)];
       s.questions = s.questions.filter((q) => q.id !== cmd.questionId);
+      break;
+    case "vipPin":
+      // Server-only: never copied into a view. Changing it signs Marlène out everywhere.
+      must(isPin(cmd.pin), `Le code VIP doit faire ${PIN_LENGTH} chiffres.`);
+      s.vipPin = cmd.pin;
       break;
     case "add": {
       must(

@@ -25,7 +25,7 @@ import {
 } from "@/lib/game/engine";
 import { createParty, applySuppliedAnswers } from "@/lib/game/seed";
 import type { Actor, Command, Role } from "@/lib/game/types";
-import { MARLENE_NAME } from "@/lib/game/vip";
+import { MARLENE_NAME, isMarleneName } from "@/lib/game/vip";
 export const dynamic = "force-dynamic";
 const json = (
   data: unknown,
@@ -137,7 +137,7 @@ export async function POST(req: Request) {
         await rateLimit(`marlene-auth:${await hash(ip)}`, 12);
         const current = await readParty();
         const prepared = current ? applySuppliedAnswers(current.party) : null;
-        await requireMarlenePin(body.pin, prepared?.secrets.q8?.text);
+        await requireMarlenePin(body.pin, prepared?.vipPin);
       }
       // Guests use a name; privileged roles authenticate before initialization.
       if (!(await readParty()))
@@ -157,7 +157,7 @@ export async function POST(req: Request) {
         p = applySuppliedAnswers(p);
         const marleneProof =
           role === "marlene"
-            ? await requireMarlenePin(body.pin, p.secrets.q8?.text)
+            ? await requireMarlenePin(body.pin, p.vipPin)
             : undefined;
         const own = [];
         for (const r of ["guest", "admin", "marlene"] as const) {
@@ -185,7 +185,7 @@ export async function POST(req: Request) {
               player.active = false;
             if (
               player.id !== joined.playerId &&
-              nicknameKey(player.nickname) === nicknameKey(MARLENE_NAME)
+              isMarleneName(player.nickname)
             ) {
               // Preserve any pre-existing guest's points while freeing the VIP name.
               let suffix = 1;

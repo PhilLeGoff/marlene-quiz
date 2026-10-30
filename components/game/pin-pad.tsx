@@ -1,6 +1,7 @@
 "use client";
 import { useId } from "react";
 import { ArrowRight, Delete } from "lucide-react";
+import { PIN_LENGTH } from "@/lib/game/vip";
 
 export function PinPad({
   value,
@@ -8,7 +9,7 @@ export function PinPad({
   onSubmit,
   disabled = false,
   busy = false,
-  label = "Code PIN à 6 chiffres",
+  label = `Code PIN à ${PIN_LENGTH} chiffres`,
   submitLabel = "Valider le code",
 }: {
   value: string;
@@ -31,23 +32,23 @@ export function PinPad({
           id={id}
           type="password"
           inputMode="numeric"
-          pattern="[0-9]{6}"
+          pattern={`[0-9]{${PIN_LENGTH}}`}
           autoComplete="off"
-          maxLength={6}
+          maxLength={PIN_LENGTH}
           value={value}
           disabled={locked}
           onChange={(event) =>
-            onChange(event.target.value.replace(/\D/g, "").slice(0, 6))
+            onChange(event.target.value.replace(/\D/g, "").slice(0, PIN_LENGTH))
           }
           onKeyDown={(event) => {
             if (event.key === "Enter") {
               event.preventDefault();
-              if (!locked && value.length === 6) onSubmit();
+              if (!locked && value.length === PIN_LENGTH) onSubmit();
             }
           }}
         />
         <div className="phone-pin-boxes" aria-hidden="true">
-          {Array.from({ length: 6 }, (_, index) => (
+          {Array.from({ length: PIN_LENGTH }, (_, index) => (
             <span key={index} className={value.length > index ? "filled" : ""}>
               {value[index] ? "●" : ""}
             </span>
@@ -76,10 +77,10 @@ export function PinPad({
             disabled={
               locked ||
               (key === "enter"
-                ? value.length !== 6
+                ? value.length !== PIN_LENGTH
                 : key === "delete"
                   ? !value.length
-                  : value.length === 6)
+                  : value.length === PIN_LENGTH)
             }
             aria-label={
               key === "delete"
@@ -94,7 +95,7 @@ export function PinPad({
                 onChange(
                   key === "delete"
                     ? value.slice(0, -1)
-                    : (value + key).slice(0, 6),
+                    : (value + key).slice(0, PIN_LENGTH),
                 );
               }
             }}
@@ -112,7 +113,7 @@ export function PinPad({
       <p className="phone-pin-help" role="status">
         {busy
           ? "Vérification du code…"
-          : `${value.length} chiffre${value.length > 1 ? "s" : ""} sur 6 · Valide avec la flèche`}
+          : `${value.length} chiffre${value.length > 1 ? "s" : ""} sur ${PIN_LENGTH} · Valide avec la flèche`}
       </p>
     </div>
   );
