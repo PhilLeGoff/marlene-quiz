@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { ArrowRight, Check, Crown, Users } from "lucide-react";
+import { ArrowRight, Camera, Check, Crown, Users } from "lucide-react";
 import { useParty } from "./use-party";
 import {
   AppShell,
@@ -14,11 +14,22 @@ import {
 import { CakeArt, EmptyParty } from "./art";
 import { Answer } from "./answer";
 import { DrawingCanvas } from "./canvas";
+import { SelfieStep, selfieSkipped } from "./selfie";
 import { OPEN, REVEALED } from "@/lib/game/types";
 export function Play() {
   const c = useParty(),
     d = c.data;
   const [hint, setHint] = useState(false);
+  // null until the guest opens or dismisses it: then it follows whether they have a photo.
+  const [selfie, setSelfie] = useState<boolean | null>(null);
+  const me = d?.players.find((p) => p.id === d.playerId);
+  const showSelfie =
+    selfie ??
+    (!!me &&
+      !me.photo &&
+      // Don't make a late arrival miss an open question.
+      !OPEN.includes(d!.phase) &&
+      !selfieSkipped(me.id));
   useEffect(() => {
     if (d?.initialized && d.role !== "guest") setHint(true);
   }, [d?.initialized, d?.role]);
@@ -35,6 +46,10 @@ export function Play() {
           <a className="btn primary wide" href="/">
             Rejoindre la fête <ArrowRight size={18} />
           </a>
+        </div>
+      ) : showSelfie ? (
+        <div className="guest-main">
+          <SelfieStep data={d} c={c} onDone={() => setSelfie(false)} />
         </div>
       ) : (
         <div className="guest-main">
@@ -64,6 +79,16 @@ export function Play() {
                 </span>
               </div>
               <PlayerBubbles data={d} />
+              <div className="row" style={{ justifyContent: "center" }}>
+                <button
+                  className="btn small"
+                  style={{ marginTop: 22 }}
+                  onClick={() => setSelfie(true)}
+                >
+                  <Camera size={16} />
+                  {me?.photo ? "Changer ma photo" : "Ajouter mon selfie"}
+                </button>
+              </div>
             </div>
           ) : d.phase === "leaderboard" || d.phase === "finished" ? (
             <Ranking data={d} final={d.phase === "finished"} />

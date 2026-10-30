@@ -68,6 +68,8 @@ export type Participant = {
   id: string;
   nickname: string;
   avatar: number;
+  // Media ID of the player's selfie, set only by the avatar upload route.
+  photo?: string;
   joinedAt: number;
   active: boolean;
 };

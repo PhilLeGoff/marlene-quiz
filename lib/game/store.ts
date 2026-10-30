@@ -136,6 +136,11 @@ export async function putMedia(id: string, body: ArrayBuffer, type: string) {
     });
   else await env.BUCKET.put(id, body, { httpMetadata: { contentType: type } });
 }
+export async function deleteMedia(id: string) {
+  if (supabase())
+    await sb(`/storage/v1/object/party-media/${id}`, { method: "DELETE" });
+  else await env.BUCKET.delete(id);
+}
 export async function getMedia(id: string): Promise<Response> {
   if (supabase()) {
     const r = await sb(`/storage/v1/object/party-media/${id}`);
