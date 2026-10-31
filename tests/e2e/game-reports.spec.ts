@@ -184,4 +184,10 @@ test("a finished game is kept in the Archives after a new game wipes it", async 
   // The lobby looks brand new.
   await expect(hp.getByRole("tab", { name: "Les invités" })).toBeVisible();
   expect((await state(host)).players).toHaveLength(0);
+  // Later specs play the default rounds: switch them back on as they were.
+  for (const q of d.questions)
+    await api(host, "admin", "edit", {
+      questionId: q.id,
+      patch: { enabled: q.enabled, duration: q.duration },
+    });
 });
