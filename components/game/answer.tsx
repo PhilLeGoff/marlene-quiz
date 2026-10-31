@@ -8,6 +8,7 @@ import { Outfit } from "./shared";
 import { PinPad } from "./pin-pad";
 import { PIN_LENGTH } from "@/lib/game/vip";
 import { MarleneSlideshow } from "./marlene-photos";
+import { MySong, SongSearch } from "./song-search";
 export function Answer({ data, c }: { data: View; c: PartyClient }) {
   const q = data.question!;
   const [selected, setSelected] = useState<string[]>([]),
@@ -26,6 +27,7 @@ export function Answer({ data, c }: { data: View; c: PartyClient }) {
         <Check size={38} />
         <h2>C’est dans la boîte !</h2>
         <p>Ta réponse est bien au chaud. Place au suspense.</p>
+        {q.kind === "blind" && <MySong data={data} />}
         {q.kind === "drawing" && (
           <DrawingPreview
             url={
@@ -48,15 +50,13 @@ export function Answer({ data, c }: { data: View; c: PartyClient }) {
         <MarleneSlideshow />
       </>
     );
-  const single = q.kind === "choice" || q.kind === "blind";
+  if (q.kind === "blind") return <SongSearch c={c} />;
+  const single = q.kind === "choice";
   const select = (v: string) =>
     setSelected((old) =>
       single ? [v] : old.includes(v) ? old.filter((x) => x !== v) : [...old, v],
     );
-  if (
-    ["choice", "multi", "outfit", "photo"].includes(q.kind) ||
-    (q.kind === "blind" && q.options.length > 0)
-  )
+  if (["choice", "multi", "outfit", "photo"].includes(q.kind))
     return (
       <div>
         {q.kind === "outfit" && <Outfit selected={selected} />}

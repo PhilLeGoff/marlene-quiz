@@ -15,6 +15,8 @@ import type { PartyClient } from "./use-party";
 import type { Question, Role, Stroke, View } from "@/lib/game/types";
 import { isMultiSelect, kindLabels, REVEALED } from "@/lib/game/types";
 import { DrawingCanvas, DrawingPreview } from "./canvas";
+import { SongReveal } from "./song-search";
+import { songLabel } from "@/lib/game/song";
 export const phaseLabels: Record<string, string> = {
   lobby: "Les invités arrivent",
   question_open: "À vous de jouer",
@@ -251,12 +253,15 @@ export function Reveal({ data }: { data: View }) {
           <div className="reveal-answer">
             <p>ROULEMENT DE TAMBOUR…</p>
             <h2>
-              {answer.answers?.join(" + ") ??
-                answer.text ??
-                `${answer.number} ${q?.unit ?? ""}`}
+              {q?.kind === "blind"
+                ? songLabel(answer)
+                : (answer.answers?.join(" + ") ??
+                  answer.text ??
+                  `${answer.number} ${q?.unit ?? ""}`)}
             </h2>
           </div>
         )}
+      {q?.kind === "blind" && <SongReveal data={data} />}
       {q?.kind === "outfit" && <Outfit selected={answer?.answers ?? []} />}
       <Gallery data={data} />
       {data.result && (
