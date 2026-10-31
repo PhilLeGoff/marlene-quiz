@@ -75,7 +75,8 @@ test("guest/star name entry, protected admin, duplicate names, reconnect and sig
     page.getByRole("button", { name: "Se déconnecter" }),
   ).toBeVisible();
   await page.close();
-  // Signed-in guests would keep later specs' rounds from closing by themselves.
+  // Signed-in guests, Marlène included, would keep later specs' rounds from closing.
   await signOutApi(other.request);
+  await signOutApi(c.request, "marlene");
   await Promise.all([a.close(), b.close(), c.close()]);
 });

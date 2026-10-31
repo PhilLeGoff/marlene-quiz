@@ -126,7 +126,6 @@ export function QuestionEditor({
               <select
                 value={draft.kind}
                 onChange={(e) => change("kind", e.target.value as Kind)}
-                disabled={q.sensitive}
               >
                 {Object.entries(kindLabels).map(([k, v]) => (
                   <option value={k} key={k}>
@@ -154,12 +153,6 @@ export function QuestionEditor({
             />{" "}
             Inclure cette manche dans la fête
           </label>
-          {q.sensitive && (
-            <p className="notice">
-              Marlène doit donner son consentement dans son espace avant
-              d’activer cette manche.
-            </p>
-          )}
           {["choice", "multi", "outfit", "photo"].includes(draft.kind) && (
             <label>
               Réponses proposées{" "}

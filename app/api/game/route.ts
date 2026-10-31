@@ -62,19 +62,6 @@ export async function GET(req: Request) {
     let current = await readParty();
     if (current && applySuppliedAnswers(current.party) !== current.party)
       current = await mutate((p) => applySuppliedAnswers(p));
-    if (
-      current &&
-      current.party.consent &&
-      Date.now() - current.party.consentAt > 7200000
-    ) {
-      current = await mutate((p) =>
-        reduce(
-          p,
-          { role: "marlene" },
-          { id: crypto.randomUUID(), action: "withdraw" },
-        ),
-      );
-    }
     if (!current) return json({ initialized: false });
     let a = await actor(req, current.party, roleOf(req));
     const url = new URL(req.url);

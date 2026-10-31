@@ -1,6 +1,6 @@
 // One whole party, played through the real screens, with every perspective open at once:
-// two guest phones (one at 390×844), Marlène's VIP space, the projector (/present) and the
-// host's backstage (/admin). Each round checks what every screen shows, and that no answer
+// two guest phones (one at 390×844), Marlène's phone (she plays too), the projector
+// (/present) and the host's backstage (/admin). Each round checks what every screen shows, and that no answer
 // key reaches a guest or the TV before the reveal.
 import { test, expect, type Locator, type Page } from "@playwright/test";
 import {
@@ -78,8 +78,8 @@ test("a whole party from the guest phones, Marlène’s space, the TV and the ho
   const clip = await upload(host, "test-tone.wav", "audio/wav", wav());
   for (const q of d.questions) {
     const patch: Record<string, unknown> = {
-      // The intimate round waits for Marlène's consent; the photo round needs real photos.
-      enabled: ORDER.includes(q.id) && !q.sensitive && q.kind !== "photo",
+      // The host turns the body count on like any round; the photo round needs real photos.
+      enabled: ORDER.includes(q.id) && q.kind !== "photo",
       // Long enough that a slow machine never runs a round out of time.
       duration: 600,
     };
@@ -99,7 +99,7 @@ test("a whole party from the guest phones, Marlène’s space, the TV and the ho
 
   // ── The TV, Marlène and two guests arrive ──────────────────────────────────────────
   const tvCtx = await browser.newContext({
-    viewport: { width: 1600, height: 900 },
+    viewport: { width: 1920, height: 1080 },
   });
   const tv = await tvCtx.newPage();
   await tv.goto("/present");
@@ -108,13 +108,12 @@ test("a whole party from the guest phones, Marlène’s space, the TV and the ho
     tv.getByText("Scanne, entre ton nom et rejoins la fête."),
   ).toBeVisible();
 
-  const starCtx = await browser.newContext({
-    viewport: { width: 1280, height: 900 },
-  });
+  const starCtx = await browser.newContext(PHONE_SIZE);
   const mp = await starCtx.newPage();
   // She types her name on the home page like a guest and lands on her PIN pad.
   await marleneSignIn(mp, "marlene");
   await expect(mp.getByText("Bienvenue dans ton royaume.")).toBeVisible();
+  const MARLENE = "Marlène";
 
   const aliceName = unique("Alice"),
     bobName = unique("Bob");
@@ -124,14 +123,15 @@ test("a whole party from the guest phones, Marlène’s space, the TV and the ho
     bob = await bobCtx.newPage();
   await joinWithSelfie(alice, aliceName);
   await joinWithSelfie(bob, bobName);
+  // Marlène plays too: she is counted with the two guests.
   const guests = (await state(host)).players.length as number;
-  expect(guests, "both phones are counted as guests").toBeGreaterThanOrEqual(2);
+  expect(guests, "both phones and Marlène are counted").toBe(3);
   const phones = [alice, bob];
   const screens = [alice, bob, tv, hp];
 
-  // Lobby: everyone sees both guests; the host sees the head count.
+  // Lobby: everyone sees both guests and Marlène; the host sees the head count.
   for (const page of screens)
-    for (const name of [aliceName, bobName])
+    for (const name of [aliceName, bobName, MARLENE])
       await expect(
         page.locator(".player-bubble", { hasText: name }),
       ).toBeVisible(PHONE);
@@ -146,18 +146,8 @@ test("a whole party from the guest phones, Marlène’s space, the TV and the ho
   await tv.screenshot({ path: shots("tv-lobby") });
   await alice.screenshot({ path: shots("phone-lobby") });
 
-  // ── Marlène prepares her secrets and consents to the intimate round ────────────────
-  await mp.getByLabel(/J’accepte explicitement/).check();
-  await mp.getByRole("button", { name: "Autoriser cette manche" }).click();
-  await expect(
-    mp.getByText("Tu as autorisé cette manche facultative."),
-  ).toBeVisible();
-  const intimate = d.questions.find((q: { sensitive: boolean }) => q.sensitive);
-  if (intimate)
-    await api(host, "admin", "edit", {
-      questionId: intimate.id,
-      patch: { enabled: true },
-    });
+  // ── Marlène prepares her secrets ───────────────────────────────────────────────────
+  const bodyCount = has("q11") ? "q11" : undefined;
   async function keepSecret(
     id: string,
     fill: (form: Locator) => Promise<void>,
@@ -186,10 +176,10 @@ test("a whole party from the guest phones, Marlène’s space, the TV and the ho
     value(/La bonne valeur/, String(KEYS.screenTime)),
     String(KEYS.screenTime),
   );
-  if (intimate)
+  if (bodyCount)
     await keepSecret(
-      intimate.id,
-      value(/La bonne valeur/, String(KEYS.bodyCount)),
+      bodyCount,
+      value("Ta réponse", String(KEYS.bodyCount)),
       String(KEYS.bodyCount),
     );
   await keepSecret("q14", value("Ta réponse", KEYS.dream), KEYS.dream);
@@ -275,12 +265,19 @@ test("a whole party from the guest phones, Marlène’s space, the TV and the ho
   const submitted = (page: Page) =>
     expect
       .poll(
-        async () => (await state(page.context().request, "guest")).submitted,
+        async () =>
+          (
+            await state(
+              page.context().request,
+              page === mp ? "marlene" : "guest",
+            )
+          ).submitted,
         PHONE,
       )
       .toBe(true);
   // The first answer of a round: the phone confirms it and every count goes to 1.
-  async function firstAnswerShows(page: Page) {
+  // Marlène sits out the rounds she leads, so they count one player less.
+  async function firstAnswerShows(page: Page, players = guests) {
     await expect(
       page.getByRole("heading", { name: "C’est dans la boîte !" }),
     ).toBeVisible(PHONE);
@@ -288,11 +285,12 @@ test("a whole party from the guest phones, Marlène’s space, the TV and the ho
       hp
         .locator(".stat", { hasText: "Participations de la manche" })
         .locator("b"),
-    ).toHaveText(`1 / ${guests}`, PHONE);
+    ).toHaveText(`1 / ${players}`, PHONE);
     await expect(
-      tv.getByText(`1 / ${guests} participations reçues`),
+      tv.getByText(`1 / ${players} participations reçues`),
     ).toBeVisible(PHONE);
   }
+  const phase = async () => (await state(host)).phase as string;
   // Closes and reveals from the host's buttons, unless the round already did it itself.
   async function settle() {
     let live = await state(host);
@@ -346,10 +344,22 @@ test("a whole party from the guest phones, Marlène’s space, the TV and the ho
   await alice.screenshot({ path: shots("phone-answer-received") });
   await pick(bob, ["Gaspard"]);
   await submitted(bob);
-  await settle();
+  // Both guests are in, but the round waits for Marlène, who answers from her phone.
+  await expect(tv.getByText(`2 / ${guests} participations reçues`)).toBeVisible(
+    PHONE,
+  );
+  await tv.screenshot({ path: shots("tv-waiting-for-marlene") });
+  expect(await phase()).toBe("question_open");
+  await expect(mp.locator(".secrets-panel")).not.toHaveAttribute("open");
+  await option(mp, "Philippe").click(PHONE);
+  await mp.screenshot({ path: shots("marlene-answering") });
+  await mp.getByRole("button", { name: /Valider mon choix/ }).click();
+  // Her answer was the last one: the round closes and reveals itself.
+  await expect.poll(phase, PHONE).toBe("reveal");
   await revealed("Philippe + Simone");
   await expect(result(alice)).toHaveClass(/positive/, PHONE);
   await expect(result(bob)).toHaveClass(/negative/, PHONE);
+  await expect(result(mp).locator("strong")).toHaveText("+1 point", PHONE);
   await alice.screenshot({ path: shots("phone-reveal") });
   await next();
 
@@ -384,7 +394,8 @@ test("a whole party from the guest phones, Marlène’s space, the TV and the ho
   await firstAnswerShows(alice);
   await pick(bob, ["Son chat"]);
   await submitted(bob);
-  await settle();
+  await pick(mp, ["Son cheval"]);
+  await expect.poll(phase, PHONE).toBe("reveal");
   await revealed("Son cheval");
   await expect(result(alice).locator("strong")).toHaveText("+1 point", PHONE);
   await expect(result(bob).locator("strong")).toHaveText("-1 point", PHONE);
@@ -392,13 +403,20 @@ test("a whole party from the guest phones, Marlène’s space, the TV and the ho
   await expect(result(bob).locator("strong")).toHaveText("-1 point", PHONE);
   await tv.screenshot({ path: shots("tv-reveal") });
   await hp.getByRole("button", { name: "Voir le classement" }).click();
-  for (const page of [alice, bob, tv, hp])
+  for (const page of [alice, bob, tv, hp, mp])
     await expect(
       page.getByRole("heading", { name: "Le classement des légendes" }),
     ).toBeVisible(PHONE);
   await expect(alice.locator(".leaderboard-row.me")).toContainText(
     `${aliceName} · toi`,
   );
+  await expect(mp.locator(".leaderboard-row.me")).toContainText(
+    `${MARLENE} · toi`,
+  );
+  await expect(mp.locator(".leaderboard-row.me")).toContainText("2 pts");
+  await expect(
+    tv.locator(".leaderboard-row", { hasText: MARLENE }),
+  ).toBeVisible();
   await expect(bob.locator(".leaderboard-row.me")).toContainText(
     `${bobName} · toi`,
   );
@@ -424,10 +442,22 @@ test("a whole party from the guest phones, Marlène’s space, the TV and the ho
   await bob.keyboard.press("Home");
   await bob.getByRole("button", { name: /Envoyer ma réponse/ }).click();
   await submitted(bob);
-  await settle();
+  // Marlène guesses her own height like everyone, one centimetre short.
+  const starSlider = mp.getByRole("slider", { name: /Ton estimation/ });
+  await starSlider.focus();
+  const middle = Number(await starSlider.inputValue());
+  for (let i = 0; i < Math.abs(middle - (KEYS.height - 1)); i++)
+    await mp.keyboard.press(
+      middle > KEYS.height - 1 ? "ArrowLeft" : "ArrowRight",
+    );
+  await mp.getByRole("button", { name: /Envoyer ma réponse/ }).click();
+  await expect.poll(phase, PHONE).toBe("reveal");
   await revealed(`${KEYS.height} cm`);
   await expect(result(alice)).toHaveClass(/positive/, PHONE);
   await expect(result(bob)).toHaveClass(/negative/, PHONE);
+  await expect(result(mp).locator("strong")).toHaveText("+4 points", PHONE);
+  await expect(result(mp)).toContainText("1 cm d’écart");
+  await mp.screenshot({ path: shots("marlene-result") });
   await next();
 
   // ── Blind tests: the host plays the clip on the TV ─────────────────────────────────
@@ -508,19 +538,19 @@ test("a whole party from the guest phones, Marlène’s space, the TV and the ho
   await revealed("Prof de plongée");
   await next();
 
-  // ── Intimate round: optional, and Marlène triggers her own reveal ──────────────────
-  if (intimate) {
-    await open(intimate.id);
-    await expect(
-      alice.getByText("Tu peux simplement passer, sans aucun point perdu."),
-    ).toBeVisible();
-    await alice.locator("input.number-answer").fill("5");
+  // ── Body count: a normal round; Marlène answers it and triggers her own reveal ────
+  if (bodyCount) {
+    await open(bodyCount);
+    await alice.getByLabel("Ta réponse").fill("5");
     await alice.getByRole("button", { name: /Envoyer ma réponse/ }).click();
     await firstAnswerShows(alice);
+    const own = mp.locator(".star-current");
+    await own.getByLabel("Ta réponse").fill(String(KEYS.bodyCount));
+    await mp.screenshot({ path: shots("marlene-answering-body-count") });
+    await own.getByRole("button", { name: /Envoyer ma réponse/ }).click();
+    await submitted(mp);
+    // Bob passes, so the host closes it.
     await hp.getByRole("button", { name: "Fermer les réponses" }).click();
-    await expect(
-      hp.getByText("Marlène gère seule sa réponse intime depuis son espace."),
-    ).toBeVisible();
     await expect(
       mp.getByRole("button", { name: "Révéler ma réponse" }),
     ).toHaveCount(0);
@@ -530,12 +560,9 @@ test("a whole party from the guest phones, Marlène’s space, the TV and the ho
     await expect(allow).toBeChecked();
     await mp.getByRole("button", { name: "Révéler ma réponse" }).click(PHONE);
     await revealed(String(KEYS.bodyCount));
-    // No points either way for this round.
+    // A "Marlène dévoile" round: no points until the host validates a guess.
     await expect(result(alice)).toHaveCount(0);
     await next();
-    // Moving on erases her answer and everyone's guesses.
-    const after = await state(host);
-    expect(after.secrets[intimate.id]).toBeUndefined();
   }
 
   // ── Red flag: moderation takes Bob's point back ───────────────────────────────────
@@ -589,12 +616,18 @@ test("a whole party from the guest phones, Marlène’s space, the TV and the ho
   const aliceExcuse = "J’ai piscine avec mon hamster",
     bobExcuse = "Mon chat a mangé mon agenda";
   await open("q15");
+  // She judges this one, so she doesn't answer it and the round doesn't wait for her.
+  await expect(
+    mp.getByRole("heading", { name: "Les invités cherchent leurs excuses." }),
+  ).toBeVisible(PHONE);
+  await api(starCtx.request, "marlene", "submit", { value: "Non" }, 403);
   await alice.getByLabel("Ta réponse").fill(aliceExcuse);
   await alice.getByRole("button", { name: /Envoyer ma réponse/ }).click();
   await submitted(alice);
   await bob.getByLabel("Ta réponse").fill(bobExcuse);
   await bob.getByRole("button", { name: /Envoyer ma réponse/ }).click();
   await submitted(bob);
+  await expect.poll(phase, PHONE).toBe("submissions_closed");
   await settle();
   const starView = await state(starCtx.request, "marlene");
   expect(starView.submissions).toHaveLength(2);
@@ -651,11 +684,17 @@ test("a whole party from the guest phones, Marlène’s space, the TV and the ho
     alice.getByRole("heading", { name: "Marlène prépare la surprise…" }),
   ).toBeVisible();
   await expect(tv.getByText("La reine prépare la surprise.")).toBeVisible();
-  await keepSecret(
-    "q17",
-    value("Le thème du concours", KEYS.theme),
-    KEYS.theme,
-  );
+  await expect(
+    mp.getByRole("heading", { name: "Tout le monde t’attend !" }),
+  ).toBeVisible();
+  await mp.getByLabel("Choisir une manche").selectOption("q17");
+  await mp.getByLabel("Le thème du concours").fill(KEYS.theme);
+  await mp.getByRole("button", { name: /Lancer ce thème/ }).click();
+  // The round opens: her secrets fold away while the guests draw.
+  await expect(
+    mp.getByRole("heading", { name: "Les artistes sont au travail." }),
+  ).toBeVisible(PHONE);
+  await expect(mp.locator(".secrets-panel")).not.toHaveAttribute("open");
   await expect(alice.getByText(`Le thème : ${KEYS.theme}`)).toBeVisible(PHONE);
   await expect(tv.getByRole("heading", { name: KEYS.theme })).toBeVisible(
     PHONE,
@@ -663,7 +702,7 @@ test("a whole party from the guest phones, Marlène’s space, the TV and the ho
   await keysStayHidden("q17");
   await scribble(alice);
   await alice.getByRole("button", { name: "Envoyer mon chef-d’œuvre" }).click();
-  await firstAnswerShows(alice);
+  await firstAnswerShows(alice, guests - 1);
   await alice.screenshot({ path: shots("phone-drawing-sent") });
   await scribble(bob);
   await bob.getByRole("button", { name: "Envoyer mon chef-d’œuvre" }).click();
@@ -707,19 +746,28 @@ test("a whole party from the guest phones, Marlène’s space, the TV and the ho
   const ours = ranking.filter((p) => [aliceName, bobName].includes(p.nickname));
   expect(ours.map((p) => p.nickname)).toEqual([aliceName, bobName]);
   expect(ours[0].score).toBeGreaterThan(ours[1].score);
-  for (const page of [alice, bob, tv, hp]) {
+  // Three players, so Marlène is on the podium too.
+  expect(ranking.map((p) => p.nickname)).toContain(MARLENE);
+  for (const page of [alice, bob, tv, hp, mp]) {
     await expect(
       page.getByRole("heading", { name: "Marlène, on t’aime !" }),
     ).toBeVisible(PHONE);
     await expect(page.locator(".podium-place.gold")).toContainText(
       ranking[0].nickname,
     );
+    await expect(
+      page.locator(".podium-place", { hasText: MARLENE }),
+    ).toBeVisible();
   }
   await expect(alice.locator(".leaderboard-row.me")).toContainText(
     `${ours[0].score}`,
   );
+  await expect(mp.locator(".leaderboard-row.me")).toContainText(
+    `${MARLENE} · toi`,
+  );
   await tv.screenshot({ path: shots("tv-podium") });
   await alice.screenshot({ path: shots("phone-podium"), fullPage: true });
+  await mp.screenshot({ path: shots("marlene-podium") });
 
   // ── The host starts over: everyone is back in the lobby with zero points ──────────
   await hp.getByRole("button", { name: "Recommencer" }).click();
@@ -737,7 +785,8 @@ test("a whole party from the guest phones, Marlène’s space, the TV and the ho
   await expect(tv.locator(".qr-wrap svg")).toBeVisible(PHONE);
   await expect(mp.getByText("Bienvenue dans ton royaume.")).toBeVisible(PHONE);
 
-  for (const page of phones) await signOut(page);
+  // Signed-in players keep later specs' rounds open, Marlène included.
+  for (const page of [...phones, mp]) await signOut(page);
   for (const ctx of [hostCtx, tvCtx, starCtx, aliceCtx, bobCtx])
     await ctx.close();
 });

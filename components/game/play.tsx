@@ -157,7 +157,7 @@ export function Play() {
           )}
           <p className="progress-caption">
             {d.phase !== "lobby" &&
-              `${d.submissionCount} / ${d.players.length} participations · `}
+              `${d.submissionCount} / ${d.roundPlayers} participations · `}
             Une fête. Une reine. Zéro pression.
           </p>
         </div>

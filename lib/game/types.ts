@@ -50,7 +50,6 @@ export type Question = {
   aliases: string[];
   bonus: number;
   attempts: number;
-  sensitive: boolean;
   media: string[];
   clipStart: number;
   clipEnd: number;
@@ -129,8 +128,6 @@ export type Party = {
   // Marlène's VIP sign-in code. Server-only: view() never copies it.
   // Missing on parties stored before it existed (see applySuppliedAnswers).
   vipPin?: string;
-  consent: boolean;
-  consentAt: number;
   revealAllowed: boolean;
   audio: { playing: boolean; at: number; offset: number };
   createdAt: number;
@@ -159,6 +156,8 @@ export type View = {
   submitted: boolean;
   mySubmission?: Submission;
   submissionCount: number;
+  // How many players answer the current round: the guests, plus Marlène unless she leads it.
+  roundPlayers: number;
   gallery: {
     id: string;
     strokes: Stroke[];
@@ -173,7 +172,6 @@ export type View = {
   secrets?: Record<string, Secret>;
   submissions?: Submission[];
   events?: ScoreEvent[];
-  consent?: boolean;
   revealAllowed?: boolean;
   audio: Party["audio"];
   realtime?: { url: string; key: string };
@@ -196,6 +194,12 @@ export const REVEALED: Phase[] = [
 const MULTI_SELECT: Kind[] = ["multi", "outfit", "photo"];
 export function isMultiSelect(kind: Kind | undefined) {
   return !!kind && MULTI_SELECT.includes(kind);
+}
+// Rounds Marlène leads instead of playing: she draws the Pictionary word and judges the
+// drawings and the creative answers. She answers every other round like a guest.
+const MARLENE_LEADS: Kind[] = ["pictionary", "drawing", "creative"];
+export function marleneLeads(kind: Kind | undefined) {
+  return !!kind && MARLENE_LEADS.includes(kind);
 }
 export const kindLabels: Record<Kind, string> = {
   choice: "Quiz",
