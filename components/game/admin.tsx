@@ -693,9 +693,10 @@ export function Admin() {
               <section className="danger-zone">
                 <h3>On remet les compteurs à zéro ?</h3>
                 <p className="small-text muted" style={{ marginBottom: 18 }}>
-                  Une nouvelle partie garde les questions et les invités. Les
-                  anciens points restent dans l’historique, mais ne comptent
-                  plus au classement.
+                  Une nouvelle partie garde les questions, mais efface les
+                  invités et leurs selfies : chacun se reconnecte. Les anciens
+                  points restent dans l’historique, mais ne comptent plus au
+                  classement.
                 </p>
                 <button className="btn danger" onClick={openReset}>
                   <RotateCcw size={17} /> Nouvelle partie
