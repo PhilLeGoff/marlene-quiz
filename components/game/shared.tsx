@@ -249,7 +249,11 @@ export function Reveal({ data }: { data: View }) {
       {answer &&
         (answer.text || answer.number !== undefined || answer.answers) && (
           <div className="reveal-answer">
-            <p>ROULEMENT DE TAMBOUR…</p>
+            <p>
+              {data.answerFromMarlene
+                ? "Réponse de Marlène :"
+                : "ROULEMENT DE TAMBOUR…"}
+            </p>
             <h2>
               {answer.answers?.join(" + ") ??
                 answer.text ??
@@ -257,6 +261,12 @@ export function Reveal({ data }: { data: View }) {
             </h2>
           </div>
         )}
+      {data.answerFromMarlene && data.role === "marlene" && !data.result && (
+        <p className="notice" role="status">
+          Ta réponse était la référence : pas de points pour toi sur cette
+          manche.
+        </p>
+      )}
       {q?.kind === "outfit" && <Outfit selected={answer?.answers ?? []} />}
       <Gallery data={data} />
       {data.result && (

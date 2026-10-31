@@ -55,6 +55,9 @@ export type Question = {
   clipEnd: number;
   // A number round answered with a slider instead of typing, e.g. a height in cm.
   slider?: { min: number; max: number; step: number };
+  // "Marlène's answer is the key": what she submits in the round is the right answer.
+  // She isn't scored on it; the stored key is only the host's fallback if she doesn't answer.
+  keyFromMarlene?: boolean;
 };
 export type Secret = {
   answers?: string[];
@@ -168,6 +171,10 @@ export type View = {
   winner?: string;
   result?: { delta: number; correct: boolean; reason: string };
   answer?: Secret;
+  // The revealed answer is the one Marlène gave in the round.
+  answerFromMarlene?: boolean;
+  // Marlène's own screen only: the Pictionary word she draws, set by the host.
+  word?: string;
   questions?: Question[];
   secrets?: Record<string, Secret>;
   submissions?: Submission[];
@@ -200,6 +207,38 @@ export function isMultiSelect(kind: Kind | undefined) {
 const MARLENE_LEADS: Kind[] = ["pictionary", "drawing", "creative"];
 export function marleneLeads(kind: Kind | undefined) {
   return !!kind && MARLENE_LEADS.includes(kind);
+}
+// Kinds whose key can be Marlène's own in-game answer. Not the rounds she leads, nor the
+// blind test, the photos or the PIN bonus, whose keys aren't about what she thinks.
+const MARLENE_KEY_KINDS: Kind[] = [
+  "number",
+  "text",
+  "reveal",
+  "choice",
+  "multi",
+  "outfit",
+];
+export function canTakeMarleneKey(kind: Kind | undefined) {
+  return !!kind && MARLENE_KEY_KINDS.includes(kind);
+}
+export function keyFromMarlene(q: Question | undefined) {
+  return !!q?.keyFromMarlene && canTakeMarleneKey(q.kind);
+}
+// Guests and Marlène can't play without a selfie (the host and the TV never need one),
+// except during an open round: arriving late, they answer first and take it right after.
+// `changingIn` is the phase in which a player who has one chose to change it.
+export function showsSelfieStep(
+  d: View | null,
+  changingIn: string | null = null,
+) {
+  const me = d?.players.find((p) => p.id === d.playerId);
+  return (
+    !!d &&
+    !!me &&
+    (d.role === "guest" || d.role === "marlene") &&
+    !OPEN.includes(d.phase) &&
+    (!me.photo || changingIn === d.phase)
+  );
 }
 export const kindLabels: Record<Kind, string> = {
   choice: "Quiz",

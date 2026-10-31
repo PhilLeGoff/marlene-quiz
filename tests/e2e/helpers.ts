@@ -38,7 +38,8 @@ export async function selfieJpeg(page: Page) {
 export const guestScreen = (page: Page) =>
   page.locator(".guest-main").getByText(/^Salut /);
 
-// From the selfie step: picks the generated photo, confirms it and waits for the game.
+// From the selfie step (a guest's or Marlène's): picks the generated photo, confirms it
+// and waits for the game.
 export async function takeSelfie(page: Page) {
   await page.locator('input[type="file"]').setInputFiles({
     name: "selfie.jpg",
@@ -47,7 +48,9 @@ export async function takeSelfie(page: Page) {
   });
   await expect(page.getByAltText("Aperçu de ton selfie")).toBeVisible();
   await page.getByRole("button", { name: /C’est moi/ }).click();
-  await expect(guestScreen(page)).toBeVisible({ timeout: 30000 });
+  await expect(page.locator(".selfie-step")).toHaveCount(0, { timeout: 30000 });
+  if (new URL(page.url()).pathname === "/play")
+    await expect(guestScreen(page)).toBeVisible({ timeout: 30000 });
 }
 
 // Joins as a guest from the home page and takes the (required) selfie. Returns once the
@@ -90,6 +93,17 @@ export const CLOSED_PHASES = [
 export const unique = (name: string) =>
   `${name} ${crypto.randomUUID().slice(0, 5)}`;
 
+// The local dev server drops idle keep-alive connections; a request that reuses one just
+// as it closes fails with a reset before reaching the app. Sending it again is safe: reads
+// change nothing, and a command keeps its id, so the server applies it at most once.
+async function resending<T>(send: () => Promise<T>): Promise<T> {
+  for (let attempt = 1; ; attempt++)
+    try {
+      return await send();
+    } catch (e) {
+      if (attempt >= 3 || !/ECONNRESET|socket hang up/.test(String(e))) throw e;
+    }
+}
 export async function api(
   ctx: APIRequestContext,
   as: string,
@@ -97,20 +111,20 @@ export async function api(
   values: Record<string, unknown> = {},
   status = 200,
 ) {
-  const r = await ctx.post(`/api/game?as=${as}`, {
-    headers: { Origin: origin },
-    data: { id: crypto.randomUUID(), action, ...values },
-  });
-  const data = await r.json();
-  expect(r.status(), JSON.stringify(data)).toBe(status);
-  return data;
+  const data = { id: crypto.randomUUID(), action, ...values };
+  const r = await resending(() =>
+    ctx.post(`/api/game?as=${as}`, { headers: { Origin: origin }, data }),
+  );
+  const body = await r.json();
+  expect(r.status(), JSON.stringify(body)).toBe(status);
+  return body;
 }
 export async function state(ctx: APIRequestContext, as = "admin") {
-  return (await ctx.get(`/api/game?as=${as}`)).json();
+  return (await resending(() => ctx.get(`/api/game?as=${as}`))).json();
 }
 // What the projector receives: no session, just the public view.
 export async function projectorState(ctx: APIRequestContext) {
-  return (await ctx.get("/api/game?present=1")).json();
+  return (await resending(() => ctx.get("/api/game?present=1"))).json();
 }
 // A round closes by itself once every signed-in guest has answered, and a round the server
 // can mark is revealed as it closes; the host only steps in for what is left.
@@ -151,7 +165,13 @@ export async function resetParty(host: APIRequestContext) {
 }
 
 // Straight to /marlene, or the way she would at the party: typing her name on the home page.
-export async function marleneSignIn(page: Page, byName?: string) {
+// Like a guest she needs a selfie: if she has none yet, she takes it (unless `selfie` is
+// false, to look at the step itself).
+export async function marleneSignIn(
+  page: Page,
+  byName?: string,
+  { selfie = true } = {},
+) {
   if (byName) {
     await page.goto("/");
     await page.getByLabel("Ton petit nom").fill(byName);
@@ -170,6 +190,11 @@ export async function marleneSignIn(page: Page, byName?: string) {
   await expect(
     page.getByRole("heading", { name: "Ce soir, c’est toi la reine." }),
   ).toBeVisible();
+  const step = page.locator(".selfie-step");
+  await expect(step.or(page.locator(".star-current")).first()).toBeVisible({
+    timeout: 30000,
+  });
+  if (selfie && (await step.count())) await takeSelfie(page);
 }
 export async function marleneApiSignIn(ctx: APIRequestContext) {
   return api(ctx, "marlene", "join", { pin: MARLENE_PIN });

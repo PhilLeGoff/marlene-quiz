@@ -45,8 +45,15 @@ import { VipPinForm } from "./vip-pin-form";
 import { MARLENE_PIN } from "@/lib/game/vip";
 import { Modal } from "./modal";
 import { DrawingCanvas, DrawingPreview } from "./canvas";
-import type { Question } from "@/lib/game/types";
+import type { Question, View } from "@/lib/game/types";
 import { kindLabels, OPEN, REVEALED } from "@/lib/game/types";
+// On "her answer is the key" rounds, Marlène's answer is the reference, not a guess to grade.
+function isReference(d: View, playerId: string) {
+  return (
+    !!d.question?.keyFromMarlene &&
+    d.players.find((p) => p.id === playerId)?.role === "marlene"
+  );
+}
 export function Admin() {
   const c = useParty("admin"),
     d = c.data;
@@ -199,9 +206,11 @@ export function Admin() {
                           <p className="notice">
                             {phaseLabels[d.phase]} · {d.submissionCount}{" "}
                             participations.{" "}
-                            {question && !question.confirmed
-                              ? "La bonne réponse reste à confirmer."
-                              : ""}
+                            {question?.keyFromMarlene
+                              ? "La réponse de Marlène fera foi."
+                              : question && !question.confirmed
+                                ? "La bonne réponse reste à confirmer."
+                                : ""}
                             {OPEN.includes(d.phase) &&
                               !["pictionary", "pin"].includes(
                                 question?.kind ?? "",
@@ -354,6 +363,7 @@ export function Admin() {
                         <strong>
                           {d.players.find((p) => p.id === sub.playerId)
                             ?.nickname ?? "Invité"}
+                          {isReference(d, sub.playerId) && " · la référence"}
                         </strong>
                         <span className="muted">
                           {(sub.elapsed / 1000).toFixed(1)} s
@@ -380,6 +390,7 @@ export function Admin() {
                       {!sub.moderated && (
                         <div className="row">
                           {["text", "reveal"].includes(question?.kind ?? "") &&
+                            !isReference(d, sub.playerId) &&
                             ["reveal", "leaderboard"].includes(d.phase) && (
                               <>
                                 <button

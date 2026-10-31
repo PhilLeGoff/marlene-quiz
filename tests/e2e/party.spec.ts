@@ -131,13 +131,13 @@ test("complete multiplayer game: all answer types, secrecy, real race, anonymous
   for (const q of d.questions) {
     if (["choice", "multi", "outfit", "photo"].includes(q.kind)) {
       const answers = d.secrets[q.id]?.answers ?? [q.options[0]];
-      await api(star.request, "marlene", "private", {
+      await api(host.request, "admin", "private", {
         questionId: q.id,
         answers,
       });
       values[q.id] = answers;
     } else if (q.kind === "number") {
-      await api(star.request, "marlene", "private", {
+      await api(host.request, "admin", "private", {
         questionId: q.id,
         number: 168,
       });
@@ -153,18 +153,18 @@ test("complete multiplayer game: all answer types, secrecy, real race, anonymous
       });
       values[q.id] = "824613";
     } else if (q.kind === "pictionary") {
-      await api(star.request, "marlene", "private", {
+      await api(host.request, "admin", "private", {
         questionId: q.id,
         text: "Éléphant rose",
       });
       values[q.id] = "elephant rose";
     } else if (q.kind === "drawing") {
-      await api(star.request, "marlene", "private", {
+      await api(host.request, "admin", "private", {
         questionId: q.id,
         prompt: "Un chat de test",
       });
     } else if (q.kind === "reveal") {
-      await api(star.request, "marlene", "private", {
+      await api(host.request, "admin", "private", {
         questionId: q.id,
         text: "Un grand voyage de test",
       });

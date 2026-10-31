@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { FileAudio, ImagePlus, Save, Trash2 } from "lucide-react";
 import type { Kind, Question } from "@/lib/game/types";
-import { kindLabels } from "@/lib/game/types";
+import { canTakeMarleneKey, kindLabels } from "@/lib/game/types";
 import type { PartyClient } from "./use-party";
 import { Modal } from "./modal";
 import { PrivateForm } from "./private-form";
@@ -64,6 +64,7 @@ export function QuestionEditor({
       note: draft.note,
       unit: draft.unit,
       enabled: draft.enabled,
+      keyFromMarlene: !!draft.keyFromMarlene,
       duration: draft.duration,
       tolerance: draft.tolerance,
       bonus: draft.bonus,
@@ -153,6 +154,23 @@ export function QuestionEditor({
             />{" "}
             Inclure cette manche dans la fête
           </label>
+          {canTakeMarleneKey(draft.kind) && (
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={!!draft.keyFromMarlene}
+                onChange={(e) => change("keyFromMarlene", e.target.checked)}
+              />
+              <span>
+                La réponse de Marlène fait foi
+                <br />
+                <small>
+                  Elle répond pendant la manche et n’est pas notée ; les invités
+                  sont notés par rapport à sa réponse.
+                </small>
+              </span>
+            </label>
+          )}
           {["choice", "multi", "outfit", "photo"].includes(draft.kind) && (
             <label>
               Réponses proposées{" "}

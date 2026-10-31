@@ -682,6 +682,12 @@ input[type="checkbox"] {
   font-size: 13px;
   line-height: 1.6;
 }
+.key-note {
+  margin-bottom: 15px;
+}
+.stack > .key-note {
+  margin-bottom: 0;
+}
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -1866,30 +1872,6 @@ input[type="checkbox"] {
   text-align: center;
   color: var(--muted);
   margin-bottom: 10px;
-}
-.secrets-panel > summary {
-  cursor: pointer;
-  list-style: none;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-.secrets-panel > summary::-webkit-details-marker {
-  display: none;
-}
-.secrets-panel > summary h2 {
-  margin-bottom: 0;
-}
-.secrets-panel[open] > summary {
-  margin-bottom: 15px;
-}
-.secrets-panel > summary .chevron {
-  flex-shrink: 0;
-  transition: transform 0.16s;
-}
-.secrets-panel[open] > summary .chevron {
-  transform: rotate(180deg);
 }
 .sr-only {
   position: absolute;

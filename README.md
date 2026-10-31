@@ -20,7 +20,7 @@ Guests enter their name on `/`. Marlène opens `/marlene` (or types her name on 
 No room code is displayed or requested. `/present` connects directly to the current party; the join QR code opens the homepage.
 
 - `/admin`: question editor, ordering, media uploads, game controls, participation, moderation, manual grading and immutable score adjustments.
-- `/marlene`: separate login, private answers, drawing prompt, live Pictionary, anonymous final vote and sensitive-round consent.
+- `/marlene`: separate login; Marlène answers every round like a guest, draws the Pictionary word live and casts the anonymous final votes. She never sees or edits answer keys.
 - `/play`: guest lobby, all answer types, touch drawing, results and rankings.
 - `/present`: read-only large-screen view and join QR code. No code is needed.
 
@@ -29,9 +29,9 @@ No room code is displayed or requested. `/present` connects directly to the curr
 1. In **Les manches**, review the supplied, prefilled answers for children’s names, countries, the balcony, Nutsy, blind tests, outfit, dream job and red flag. Confirm the remaining unknown answers with Marlène; no unknown personal facts are invented.
 2. Additional child-name distractors Gaspard and Colette are clearly marked as generated and editable. All original supplied options are retained, including both seven-choice questions.
 3. Upload legally supplied audio excerpts for each blind-test round. Set start/end seconds and test the projector’s audio. Browsers may require an initial tap on Play; the projector explains this when autoplay is blocked. Uploaded filenames are replaced with random IDs so a filename cannot reveal the song.
-4. Numerical values, including height and screen time, are entered privately. Screen time defaults to average daily minutes over the last seven days; change the period/unit in the editor as needed.
+4. On the rounds about Marlène herself (height, body count, the million: "La réponse de Marlène fait foi" in the editor), her own in-game answer is the key: she isn't scored on them and guests are scored against it. A key the host types for those rounds is only a fallback if she doesn't answer. The host sets the Pictionary word and the drawing theme. Other numerical values, such as screen time, are entered by the host. Screen time defaults to average daily minutes over the last seven days; change the period/unit in the editor as needed.
 5. Marlène's VIP PIN defaults to `123456`. The host can change it in **Réglages → Code VIP de Marlène** (exactly six digits); the current code is never shown in any view. Changing it signs Marlène out of every device. Never enter an actual device credential. The photo round starts empty and disabled: upload only authorized images and configure their matching options/keys. No real ex-partner identities are included.
-6. The intimate round is disabled. Only Marlène can explicitly consent and supply its private answer. The host can then enable it. Skipping incurs no penalty. Withdrawal immediately removes its secret and submissions. The app also erases them on advancing, finishing, resetting, or expiry after two hours (on the next authenticated/API read or mutation; there is no background retention cron).
+6. The body count round is disabled by default. The host turns it on only if Marlène agrees, or skips it; skipping incurs no penalty.
 7. Try a short rehearsal on the actual Wi-Fi and projector. Use **Réglages → Nouvelle partie** to reset scores while retaining questions and connected players.
 
 ## Game behavior

@@ -18,7 +18,7 @@ const q = (
   duration: 45,
   tolerance: 0,
   unit: "",
-  note: "Réponse à confirmer par Marlène ou l’hôte.",
+  note: "Réponse à confirmer par l’hôte.",
   aliases: [],
   bonus: 5,
   attempts: 3,
@@ -30,6 +30,16 @@ const q = (
 // Off by default: the host plays it, or skips it, depending on what Marlène wants.
 const bodyCountNote =
   "Désactivée au départ. Active-la seulement si Marlène est d’accord, sinon passe-la.";
+// Marlène answers these in the round like everyone; her answer is the key (see keyFromMarlene).
+const heightNote =
+  "La réponse de Marlène pendant la manche fait foi. 5 points pile poil, un de moins par cm d’écart.";
+const dreamNote =
+  "Les invités devinent. La réponse de Marlène pendant la manche fait foi. L’hôte valide les équivalences.";
+// The host sets the Pictionary word and the drawing theme; Marlène draws and judges.
+const pictionaryNote =
+  "L’hôte choisit le mot secret, Marlène le dessine. Première bonne réponse : +5.";
+const drawingNote =
+  "L’hôte choisit le thème, Marlène vote anonymement. Un seul gagnant : +5.";
 export const seedQuestions: Question[] = [
   q(
     1,
@@ -85,8 +95,9 @@ export const seedQuestions: Question[] = [
   ),
   q(5, "Quelle taille fait Marlène ?", "number", [], {
     unit: "cm",
-    note: "Marlène renseigne sa taille en privé. 5 points pile poil, un de moins par cm d’écart.",
+    note: heightNote,
     slider: { min: 140, max: 200, step: 1 },
+    keyFromMarlene: true,
   }),
   ...["a", "b", "c"].map((id, i) => ({
     ...q(
@@ -183,6 +194,7 @@ export const seedQuestions: Question[] = [
     enabled: false,
     note: bodyCountNote,
     duration: 45,
+    keyFromMarlene: true,
   }),
   q(12, "Retrouve les ex de Marlène 🐶", "photo", [], {
     enabled: false,
@@ -209,9 +221,7 @@ export const seedQuestions: Question[] = [
     "Que ferait Marlène si elle gagnait 1 million d’euros ?",
     "reveal",
     [],
-    {
-      note: "Les invités devinent. Marlène répond en privé. L’hôte valide les équivalences.",
-    },
+    { note: dreamNote, keyFromMarlene: true },
   ),
   q(
     15,
@@ -225,11 +235,11 @@ export const seedQuestions: Question[] = [
   ),
   q(16, "Pictionary avec Marlène 🎨", "pictionary", [], {
     duration: 120,
-    note: "Marlène choisit un mot secret et dessine. Première bonne réponse : +5.",
+    note: pictionaryNote,
   }),
   q(17, "Le concours de dessins de Marlène 🎨", "drawing", [], {
     duration: 120,
-    note: "Marlène choisit le thème, puis vote anonymement. Un seul gagnant : +5.",
+    note: drawingNote,
   }),
 ];
 // Private, server-only answer keys from the user's notes; never sent before reveal.
@@ -363,7 +373,39 @@ export function applySuppliedAnswers(stored: Party): Party {
       ...source.slider,
     };
   }
-  return upgradeSleepQuestion(next);
+  return upgradeMarleneKeys(upgradeSleepQuestion(next));
+}
+// Marlène used to type the keys about herself (height, body count, the million) in her
+// space, and the Pictionary word and drawing theme. She now answers those rounds in-game
+// and her answer is the key; the host sets the word and the theme. Stored parties get the
+// `keyFromMarlene` flag the seed has, unless the host already set it either way; keys
+// already typed stay as the host's fallback. Notes still saying the old flow are swapped.
+// A round being played is left alone until it's over.
+const legacyNotes: Record<string, string> = {
+  q5: "Marlène renseigne sa taille en privé. 5 points pile poil, un de moins par cm d’écart.",
+  q14: "Les invités devinent. Marlène répond en privé. L’hôte valide les équivalences.",
+  q16: "Marlène choisit un mot secret et dessine. Première bonne réponse : +5.",
+  q17: "Marlène choisit le thème, puis vote anonymement. Un seul gagnant : +5.",
+};
+export function upgradeMarleneKeys(original: Party): Party {
+  const playing = !["lobby", "next_round", "finished"].includes(original.phase)
+    ? original.questions[original.index]?.id
+    : undefined;
+  let next = original;
+  original.questions.forEach((stored, at) => {
+    const source = seedQuestions.find((q) => q.id === stored.id);
+    if (!source || stored.id === playing) return;
+    const flag =
+      !!source.keyFromMarlene &&
+      stored.keyFromMarlene === undefined &&
+      stored.kind === source.kind;
+    const note = legacyNotes[stored.id] === stored.note;
+    if (!flag && !note) return;
+    if (next === original) next = structuredClone(original);
+    if (flag) next.questions[at].keyFromMarlene = true;
+    if (note) next.questions[at].note = source.note;
+  });
+  return next;
 }
 // q7 used to be the multi-select pyjama round "Comment dort Marlène ?". Parties seeded
 // with it get the single-answer sleep question instead, as long as the host hasn't
@@ -381,8 +423,7 @@ function upgradeSleepQuestion(original: Party): Party {
   const scored = original.events.some(
     (e) => e.questionId === "q7" && e.generation === original.generation,
   );
-  if (reached || scored)
-    return original;
+  if (reached || scored) return original;
   const source = seedQuestions.find((q) => q.id === "q7")!;
   const next = structuredClone(original);
   Object.assign(next.questions[at], {

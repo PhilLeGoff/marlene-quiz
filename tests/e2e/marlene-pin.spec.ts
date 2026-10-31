@@ -65,6 +65,13 @@ test("typing marlene on the home page leads to her PIN pad, and 123456 opens her
   });
   const me = await (await context.request.get("/api/game?as=marlene")).json();
   expect(me.role).toBe("marlene");
+  // Like a guest, she takes a selfie first if she has none yet (marlene-space covers it).
+  const photo = me.players.find(
+    (p: { id: string; photo?: string }) => p.id === me.playerId,
+  )?.photo;
+  await expect(
+    page.locator(photo ? ".star-current" : ".selfie-step"),
+  ).toBeVisible();
   expect(me.vipPin).toBeUndefined();
   expect(JSON.stringify(me)).not.toContain('"123456"');
   // She plays like a guest: left signed in, she would keep later specs' rounds open.
