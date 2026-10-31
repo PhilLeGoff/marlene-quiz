@@ -1155,6 +1155,16 @@ input[type="checkbox"] {
   margin: 17px 0 25px;
   line-height: 1.2;
 }
+/* Pull the title and its small note together; the note keeps the gap below. */
+.question-title:has(+ .question-hint) {
+  margin-bottom: 6px;
+}
+.question-hint {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--muted);
+  margin-bottom: 22px;
+}
 .answer-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1667,6 +1677,14 @@ input[type="checkbox"] {
   max-width: 1250px;
   margin: 30px auto;
   text-align: center;
+}
+.presentation .question-title:has(+ .question-hint) {
+  margin-bottom: 10px;
+}
+.presentation .question-hint {
+  font-size: clamp(20px, 1.8vw, 30px);
+  text-align: center;
+  margin-bottom: 30px;
 }
 .presentation .answer-grid {
   max-width: 1400px;

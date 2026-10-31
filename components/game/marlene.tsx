@@ -14,6 +14,7 @@ import {
   AppShell,
   Gallery,
   GameMeta,
+  QuestionHint,
   Loading,
   phaseLabels,
   Reveal,
@@ -75,6 +76,7 @@ export function Marlene() {
                 ) : (
                   <>
                     <h2 className="question-title">{current.title}</h2>
+                    <QuestionHint kind={current.kind} />
                     {current.kind === "pictionary" &&
                     d.phase === "pictionary_live" ? (
                       <>

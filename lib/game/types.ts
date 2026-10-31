@@ -192,6 +192,11 @@ export const REVEALED: Phase[] = [
   "winner_revealed",
   "pictionary_winner",
 ];
+// Kinds where players can tick several options. Scoring gives +1 per right tick, −1 per wrong one.
+const MULTI_SELECT: Kind[] = ["multi", "outfit", "photo"];
+export function isMultiSelect(kind: Kind | undefined) {
+  return !!kind && MULTI_SELECT.includes(kind);
+}
 export const kindLabels: Record<Kind, string> = {
   choice: "Quiz",
   multi: "Plusieurs réponses",
