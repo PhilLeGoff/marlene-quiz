@@ -55,7 +55,7 @@ const prefersReducedMotion = () =>
 export function MarleneSlideshow({
   variant = "phone",
 }: {
-  variant?: "phone" | "tv";
+  variant?: "phone" | "tv" | "hero";
 }) {
   const photos = useMarlenePhotos();
   // The last two cards: the one on top and the one it landed on.
