@@ -17,6 +17,8 @@ import { isMultiSelect, kindLabels, REVEALED } from "@/lib/game/types";
 import { DrawingCanvas, DrawingPreview } from "./canvas";
 import { formatNumber } from "@/lib/game/time";
 import { MatchReveal } from "./match";
+import { SongReveal } from "./song-search";
+import { songLabel } from "@/lib/game/song";
 export const phaseLabels: Record<string, string> = {
   lobby: "Les invités arrivent",
   question_open: "À vous de jouer",
@@ -263,9 +265,11 @@ export function Reveal({ data }: { data: View }) {
                 : "ROULEMENT DE TAMBOUR…"}
             </p>
             <h2>
-              {answer.answers?.join(" + ") ??
-                answer.text ??
-                formatNumber(q, answer.number!)}
+              {q?.kind === "blind"
+                ? songLabel(answer)
+                : (answer.answers?.join(" + ") ??
+                  answer.text ??
+                  formatNumber(q, answer.number!))}
             </h2>
           </div>
         )}
@@ -275,6 +279,7 @@ export function Reveal({ data }: { data: View }) {
           manche.
         </p>
       )}
+      {q?.kind === "blind" && <SongReveal data={data} />}
       {q?.kind === "outfit" && <Outfit selected={answer?.answers ?? []} />}
       <Gallery data={data} />
       {data.result && (

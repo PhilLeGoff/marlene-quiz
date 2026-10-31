@@ -180,6 +180,13 @@ test("the host picks the blind-test section ahead of time and the round plays on
   const tv = await (await browser.newContext()).newPage();
   await tv.goto(`/present?room=${d.room}`);
   await api({ action: "open" });
+  // Guests answer in a song search box: the TV shows no multiple-choice options.
+  const projector = await (
+    await host.request.get("/api/game?present=1")
+  ).json();
+  expect(projector.question.options).toEqual([]);
+  await expect(tv.locator(".audio-player")).toBeVisible({ timeout: 30000 });
+  await expect(tv.locator(".answer-option")).toHaveCount(0);
   await hp.getByRole("tab", { name: "La régie" }).click();
   const play = hp.getByRole("button", { name: /Jouer \/ rejouer/ });
   await expect(play).toBeVisible({ timeout: 30000 });

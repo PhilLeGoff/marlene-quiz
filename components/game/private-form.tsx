@@ -9,6 +9,17 @@ import { formatNumber, formatTime, isTime, parseTime } from "@/lib/game/time";
 import { keyFromMarlene } from "@/lib/game/types";
 // The host's answer-key form. Marlène never sets keys: on the rounds whose key is her own
 // in-game answer, what the host types here only counts if she doesn't answer.
+import { songLabel, splitAnswer } from "@/lib/game/song";
+// A blind-test key saved before the artist had its own field kept it in "Artist — Title".
+const artistOf = (secret?: Secret) =>
+  secret?.artist ??
+  (secret?.answers?.[0] ? splitAnswer(secret.answers[0]).artist : "") ??
+  "";
+const titleOf = (q: Question, secret?: Secret) =>
+  secret?.text ??
+  (q.kind === "blind" && secret?.answers?.[0]
+    ? splitAnswer(secret.answers[0]).title
+    : "");
 export function PrivateForm({
   q,
   c,
@@ -23,15 +34,15 @@ export function PrivateForm({
   const time = isTime(q);
   const shown = (n?: number) =>
     n === undefined ? "" : time ? formatTime(n) : n.toString();
-  const [text, setText] = useState(secret?.text ?? ""),
+  const isBlind = q.kind === "blind";
+  const [text, setText] = useState(titleOf(q, secret)),
+    [artist, setArtist] = useState(artistOf(secret)),
     [num, setNum] = useState(shown(secret?.number)),
     [prompt, setPrompt] = useState(secret?.prompt ?? ""),
     [aliases, setAliases] = useState(secret?.aliases?.join("\n") ?? ""),
     [answers, setAnswers] = useState(secret?.answers ?? []),
     [saved, setSaved] = useState(false);
-  const options =
-    ["choice", "multi", "outfit", "photo"].includes(q.kind) ||
-    (q.kind === "blind" && q.options.length > 0);
+  const options = ["choice", "multi", "outfit", "photo"].includes(q.kind);
   const isMatch = q.kind === "match";
   // A matching key: one distinct name per photo.
   const matchReady =
@@ -84,7 +95,8 @@ export function PrivateForm({
               ? secret?.answers
                   ?.map((name, i) => `Photo ${i + 1} : ${name}`)
                   .join(" · ")
-              : (secret?.answers?.join(" + ") ??
+              : ((isBlind ? songLabel(secret) : undefined) ??
+                secret?.answers?.join(" + ") ??
                 secret?.text ??
                 (secret?.number !== undefined
                   ? formatNumber(q, secret.number)
@@ -95,7 +107,8 @@ export function PrivateForm({
           type="button"
           className="btn small"
           onClick={() => {
-            setText(secret?.text ?? "");
+            setText(titleOf(q, secret));
+            setArtist(artistOf(secret));
             setNum(shown(secret?.number));
             setPrompt(secret?.prompt ?? "");
             setAnswers(secret?.answers ?? []);
@@ -119,6 +132,7 @@ export function PrivateForm({
         else if (isDrawing) values.prompt = prompt;
         else {
           values.text = text;
+          if (isBlind) values.artist = artist.trim();
           values.aliases = aliases
             .split("\n")
             .map((x) => x.trim())
@@ -238,9 +252,11 @@ export function PrivateForm({
           <label>
             {q.kind === "pictionary"
               ? "Le mot ou la phrase que Marlène dessinera"
-              : q.kind === "pin"
-                ? `Code fictif à ${PIN_LENGTH} chiffres`
-                : "La réponse"}
+              : isBlind
+                ? "Titre de la chanson"
+                : q.kind === "pin"
+                  ? `Code fictif à ${PIN_LENGTH} chiffres`
+                  : "La réponse"}
             <input
               required
               type={q.kind === "pin" ? "password" : "text"}
@@ -256,6 +272,24 @@ export function PrivateForm({
               autoComplete="off"
             />
           </label>
+          {isBlind && (
+            <label>
+              Artiste{" "}
+              <small>
+                Facultatif. S’il est rempli, une chanson choisie dans la
+                recherche doit aussi être du bon artiste.
+              </small>
+              <input
+                maxLength={200}
+                value={artist}
+                onChange={(e) => {
+                  setSaved(false);
+                  setArtist(e.target.value);
+                }}
+                autoComplete="off"
+              />
+            </label>
+          )}
           {["text", "blind", "pictionary"].includes(q.kind) && (
             <label>
               Autres réponses acceptées{" "}

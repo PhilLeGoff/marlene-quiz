@@ -20,6 +20,7 @@ import {
 import { CLIP_MAX } from "./clip";
 import { formatGap } from "./time";
 import { PIN_LENGTH, isMarleneName, isPin, nicknameKey } from "./vip";
+import { cleanSong, pickMatches, songKey, typedMatches } from "./song";
 export class GameError extends Error {
   constructor(
     message: string,
@@ -42,6 +43,7 @@ export function correct(
   q: Question,
   key: Secret | undefined,
   value: Submission["value"],
+  song?: Submission["song"],
 ): boolean | null {
   if (!q.confirmed || !key) return null;
   if (["creative", "drawing", "reveal"].includes(q.kind)) return null;
@@ -51,14 +53,17 @@ export function correct(
     if (!q.photos?.length || answers?.length !== q.photos.length) return null;
     return Array.isArray(value) && answers.every((a, i) => value[i] === a);
   }
+  // Blind tests are answered from the song search (or typed); stored options aren't used.
+  if (q.kind === "blind") {
+    const k = songKey(key, q.aliases);
+    if (!k) return null;
+    return song ? pickMatches(k, song) : typedMatches(k, String(value));
+  }
   if (q.kind === "number")
     return typeof value === "number" && key.number !== undefined
       ? Math.abs(value - key.number) <= q.tolerance
       : null;
-  if (
-    ["multi", "outfit", "photo", "choice"].includes(q.kind) ||
-    (q.kind === "blind" && q.options.length > 0)
-  ) {
+  if (["multi", "outfit", "photo", "choice"].includes(q.kind)) {
     if (!key.answers?.length) return null;
     const values: unknown[] = Array.isArray(value) ? value : [value];
     return (
@@ -199,7 +204,7 @@ function scoreRound(s: Party, now: number) {
     if (sub.moderated) continue;
     // Her answer is the reference on these rounds: she isn't scored against herself.
     if (keyFromMarlene(q) && isMarlene(s, sub.playerId)) continue;
-    const result = correct(marked, key, sub.value);
+    const result = correct(marked, key, sub.value, sub.song);
     if (result === null) continue;
     if (q.slider && typeof sub.value === "number") {
       const { delta, reason } = sliderScore(
@@ -384,7 +389,8 @@ function publicQuestion(q: Question): Question {
     source: q.source,
     title: q.title,
     kind: q.kind,
-    options: q.options,
+    // A blind test's old multiple-choice options stay stored but are never shown.
+    options: q.kind === "blind" ? [] : q.options,
     generated: [],
     enabled: q.enabled,
     confirmed: q.confirmed,
@@ -476,6 +482,22 @@ export function view(
             x.value[i] === key[i],
         ).length,
     );
+  }
+  if (q?.kind === "blind" && revealed && actor) {
+    const players = new Map(s.players.map((p) => [p.id, p.nickname]));
+    v.picks = subs
+      .filter((x) => !x.moderated && typeof x.value === "string")
+      .map((x) => ({
+        playerId: x.playerId,
+        nickname: players.get(x.playerId) ?? "Invité",
+        label: x.value as string,
+        ...(x.song?.cover ? { cover: x.song.cover } : {}),
+        correct: !!s.events.find(
+          (e) =>
+            e.id === `${s.roundId}:${x.playerId}` &&
+            e.generation === s.generation,
+        )?.correct,
+      }));
   }
   if (revealed && actor?.playerId) {
     const result = s.events.filter(
@@ -670,6 +692,7 @@ export function reduce(
         "Tu as utilisé toutes tes tentatives.",
       );
       const value = cmd.value;
+      let song: Submission["song"];
       must(value !== null && value !== undefined, "Ajoute ta réponse.");
       if (q.kind === "drawing") validateStrokes(value);
       else if (q.kind === "match") {
@@ -693,10 +716,17 @@ export function reduce(
             Math.abs(value) <= 1e9,
           "Entre un nombre valide.",
         );
-      else if (
-        ["choice", "multi", "outfit", "photo"].includes(q.kind) ||
-        (q.kind === "blind" && q.options.length > 0)
-      ) {
+      else if (q.kind === "blind") {
+        // A song picked from the search, or what the guest typed when it isn't there.
+        song = cleanSong(cmd.song) ?? undefined;
+        must(
+          !!song ||
+            (typeof value === "string" &&
+              value.trim().length > 0 &&
+              value.length <= 200),
+          "Choisis une chanson ou écris ta réponse.",
+        );
+      } else if (["choice", "multi", "outfit", "photo"].includes(q.kind)) {
         must(
           Array.isArray(value) &&
             value.length <= q.options.length &&
@@ -706,7 +736,7 @@ export function reduce(
             new Set(value).size === value.length,
           "Choisis parmi les réponses proposées.",
         );
-        if (q.kind === "choice" || q.kind === "blind")
+        if (q.kind === "choice")
           must(value.length === 1, "Choisis une seule réponse.");
       } else
         must(
@@ -720,7 +750,12 @@ export function reduce(
       const sub: Submission = {
         id: previous?.id ?? cmd.id,
         playerId: actor.playerId!,
-        value: value as Submission["value"],
+        value: song
+          ? `${song.artist} — ${song.title}`
+          : q.kind === "blind"
+            ? String(value).trim()
+            : (value as Submission["value"]),
+        ...(song ? { song } : {}),
         at: now,
         elapsed: Math.max(0, now - s.startedAt),
         moderated: false,
@@ -835,6 +870,13 @@ export function reduce(
           );
         secret.text = cmd.text;
       }
+      if (cmd.artist !== undefined && cmd.artist !== "") {
+        must(
+          typeof cmd.artist === "string" && cmd.artist.length <= 200,
+          "Nom d’artiste trop long.",
+        );
+        if (cmd.artist.trim()) secret.artist = cmd.artist.trim();
+      }
       if (cmd.answers !== undefined) {
         must(
           Array.isArray(cmd.answers) &&
@@ -849,7 +891,7 @@ export function reduce(
               new Set(secret.answers).size === secret.answers.length,
             "Donne un prénom différent à chaque photo.",
           );
-        if (target.kind === "choice" || target.kind === "blind")
+        if (target.kind === "choice")
           must(
             secret.answers.length === 1,
             "Une seule bonne réponse attendue.",
