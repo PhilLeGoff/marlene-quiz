@@ -90,7 +90,6 @@ test("complete multiplayer game: all answer types, secrecy, real race, anonymous
   d = await state(host.request);
   const room = d.room;
   await api(star.request, "marlene", "join", { pin: MARLENE_PIN });
-  await api(star.request, "marlene", "consent");
   const tone = await host.request.post("/api/media", {
     headers: { Origin: process.env.TEST_BASE_URL ?? "http://127.0.0.1:3105" },
     multipart: {
@@ -167,7 +166,7 @@ test("complete multiplayer game: all answer types, secrecy, real race, anonymous
     } else if (q.kind === "reveal") {
       await api(star.request, "marlene", "private", {
         questionId: q.id,
-        ...(q.sensitive ? { number: 42 } : { text: "Un grand voyage de test" }),
+        text: "Un grand voyage de test",
       });
       values[q.id] = "Un grand voyage";
     } else values[q.id] = "Mon hamster organise une AG.";
@@ -305,7 +304,7 @@ test("complete multiplayer game: all answer types, secrecy, real race, anonymous
             e.roundId === live.roundId && e.delta === 5,
         ),
       ).toHaveLength(1);
-    } else if (!q.sensitive) {
+    } else {
       await api(guest.request, "guest", "submit", { value: values[q.id] });
     }
     live = await state(host.request);
@@ -315,7 +314,7 @@ test("complete multiplayer game: all answer types, secrecy, real race, anonymous
         const s = live.submissions[0];
         await api(star.request, "marlene", "vote", { submissionId: s.id });
       }
-      if (q.kind === "reveal" && !q.sensitive && live.submissions.length)
+      if (q.kind === "reveal" && live.submissions.length)
         await api(host.request, "admin", "grade", {
           submissionId: live.submissions[0].id,
           correct: true,
@@ -331,7 +330,6 @@ test("complete multiplayer game: all answer types, secrecy, real race, anonymous
   ).toBeVisible();
   const final = await state(host.request);
   expect(final.players[0].score).toBeGreaterThan(10);
-  expect(final.secrets.q11).toBeUndefined();
   await gp.screenshot({
     path: "outputs/game-finished-mobile.png",
     fullPage: true,
@@ -342,6 +340,7 @@ test("complete multiplayer game: all answer types, secrecy, real race, anonymous
   ).toBeVisible();
   await hp.screenshot({ path: "outputs/admin-desktop.png", fullPage: true });
   for (const context of [guest, bob]) await signOutApi(context.request);
+  await signOutApi(star.request, "marlene");
   for (const context of [host, star, guest, bob, projector])
     await context.close();
 });

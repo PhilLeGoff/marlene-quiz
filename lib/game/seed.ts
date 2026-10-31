@@ -22,12 +22,14 @@ const q = (
   aliases: [],
   bonus: 5,
   attempts: 3,
-  sensitive: false,
   media: [],
   clipStart: 0,
   clipEnd: 30,
   ...extra,
 });
+// Off by default: the host plays it, or skips it, depending on what Marlène wants.
+const bodyCountNote =
+  "Désactivée au départ. Active-la seulement si Marlène est d’accord, sinon passe-la.";
 export const seedQuestions: Question[] = [
   q(
     1,
@@ -179,8 +181,7 @@ export const seedQuestions: Question[] = [
   ),
   q(11, "Body count ?", "reveal", [], {
     enabled: false,
-    sensitive: true,
-    note: "Facultatif et privé. Consentement explicite de Marlène requis. Retrait et passage sans pénalité.",
+    note: bodyCountNote,
     duration: 45,
   }),
   q(12, "Retrouve les ex de Marlène 🐶", "photo", [], {
@@ -290,7 +291,7 @@ function upgradeVipPin(original: Party): Party {
   else if (legacy === next.index) {
     // q8 was queued next: queue the following playable question instead, as "next" does.
     const following = next.questions.findIndex(
-      (q, i) => i >= legacy && q.enabled && (!q.sensitive || next.consent),
+      (q, i) => i >= legacy && q.enabled,
     );
     if (next.phase === "next_round" && following >= 0) next.index = following;
     else {
@@ -300,12 +301,26 @@ function upgradeVipPin(original: Party): Party {
   }
   return next;
 }
+// The body count used to need Marlène's consent, which its note said. It is now a normal
+// round the host turns on or skips; swap the old note so it doesn't tell the host otherwise.
+// Stale `sensitive` / `consent` fields left in stored parties are never read.
+const legacyBodyCountNote =
+  "Facultatif et privé. Consentement explicite de Marlène requis. Retrait et passage sans pénalité.";
+function upgradeBodyCountNote(original: Party): Party {
+  const at = original.questions.findIndex(
+    (q) => q.id === "q11" && q.note === legacyBodyCountNote,
+  );
+  if (at < 0) return original;
+  const next = structuredClone(original);
+  next.questions[at].note = bodyCountNote;
+  return next;
+}
 const presetVersion = "party-notes-2026-10-29-confirmed-v2";
 const presetIds = Object.keys(suppliedAnswers);
 // Upgrade existing parties once, retaining uploads, timers, players, scores and admin edits.
 // A currently running/revealed question is left untouched until the next round.
 export function applySuppliedAnswers(stored: Party): Party {
-  const original = upgradeVipPin(stored);
+  const original = upgradeBodyCountNote(upgradeVipPin(stored));
   let next = original;
   const active = original.questions[original.index]?.id;
   for (const id of presetIds) {
@@ -408,8 +423,6 @@ export function createParty(
     requests: [],
     credentials,
     vipPin: MARLENE_PIN,
-    consent: false,
-    consentAt: 0,
     revealAllowed: false,
     audio: { playing: false, at: 0, offset: 0 },
     createdAt: now,

@@ -24,7 +24,7 @@ export function PrivateForm({
     ["choice", "multi", "outfit", "photo"].includes(q.kind) ||
     (q.kind === "blind" && q.options.length > 0);
   const isDrawing = q.kind === "drawing";
-  const isNum = q.kind === "number" || q.sensitive;
+  const isNum = q.kind === "number";
   if (q.kind === "creative")
     return (
       <section className="notice">

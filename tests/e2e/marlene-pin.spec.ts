@@ -67,6 +67,8 @@ test("typing marlene on the home page leads to her PIN pad, and 123456 opens her
   expect(me.role).toBe("marlene");
   expect(me.vipPin).toBeUndefined();
   expect(JSON.stringify(me)).not.toContain('"123456"');
+  // She plays like a guest: left signed in, she would keep later specs' rounds open.
+  await signOutApi(context.request, "marlene");
   await context.close();
 });
 

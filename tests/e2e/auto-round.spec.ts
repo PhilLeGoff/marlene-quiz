@@ -35,11 +35,10 @@ test("a round closes and scores itself once every guest has answered", async ({
       return page;
     }),
   );
-  const guests = (
-    await (await host.request.get("/api/game?as=admin")).json()
-  ).players.filter((x: { role?: string }) => !x.role || x.role === "guest");
-  // Guests left signed in by other specs would (rightly) keep the round open.
-  expect(guests, "needs a fresh test server").toHaveLength(2);
+  const players = (await (await host.request.get("/api/game?as=admin")).json())
+    .players;
+  // Guests, or Marlène, left signed in by other specs would (rightly) keep the round open.
+  expect(players, "needs a fresh test server").toHaveLength(2);
   await post({ action: "open" });
   const [right, wrong] = phones;
   for (const [page, answer] of [

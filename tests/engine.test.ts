@@ -205,7 +205,7 @@ describe("seed bank", () => {
     rehearsed.generation++;
     expect(sleep(applySuppliedAnswers(rehearsed)).kind).toBe("choice");
   });
-  it("retains seven choices and protects optional rounds", () => {
+  it("retains seven choices and leaves the optional rounds off", () => {
     expect(seedQuestions.find((q) => q.id === "q4")?.options).toHaveLength(7);
     expect(seedQuestions.find((q) => q.id === "q10")?.options).toHaveLength(7);
     for (const id of ["q11", "q12"])
@@ -357,9 +357,10 @@ describe("authorization and hidden answers", () => {
     expect(() => run(p, guest(), "join", { nickname: "marlene" })).toThrow(
       "réservé à Marlène",
     );
-    expect(leaderboard(p)).toHaveLength(0);
+    // Marlène plays and is ranked; the host isn't.
+    expect(leaderboard(p).map((x) => x.id)).toEqual(["star"]);
     p = run(p, guest(), "join", { nickname: "A" });
-    expect(leaderboard(p)).toHaveLength(1);
+    expect(leaderboard(p)).toHaveLength(2);
   });
   it("lets the same identity reconnect without duplicate participation", () => {
     let p = createParty("123456", { admin: "", marlene: "" }, 1000);
@@ -370,7 +371,6 @@ describe("authorization and hidden answers", () => {
 
   it("erases the private key when its question is deleted", () => {
     let p = createParty("123456", { admin: "hash", marlene: "hash" }, 1000);
-    p = run(p, star, "consent");
     p = run(p, star, "private", { questionId: "q11", number: 42 });
     p = run(p, admin, "delete", { questionId: "q11" });
     expect(p.secrets.q11).toBeUndefined();
@@ -515,22 +515,42 @@ describe("submissions, timers, drawing and winner races", () => {
       validateStrokes([{ ...stroke, points: [{ x: 2, y: 0 }] }]),
     ).toThrow();
   });
-  it("requires sensitive consent from Marlène and supports immediate withdrawal", () => {
+  it("plays the body count as a normal round the host turns on, or skips", () => {
     let p = party("q11");
-    expect(() => run(p, admin, "consent")).toThrow("Seule");
-    expect(() =>
-      run(p, admin, "edit", { questionId: "q11", patch: { enabled: true } }),
-    ).toThrow("consentement");
-    p = run(p, star, "consent");
-    p = run(p, admin, "edit", { questionId: "q11", patch: { enabled: true } });
-    p = run(p, admin, "open");
-    p = run(p, star, "private", { questionId: "q11", number: 42 });
-    p = run(p, guest(), "submit", { value: 22 });
-    p = run(p, star, "withdraw");
-    expect(p.secrets.q11).toBeUndefined();
-    expect(p.submissions[p.roundId]).toBeUndefined();
     expect(p.questions[0].enabled).toBe(false);
-    expect(p.events).toHaveLength(0);
+    expect(() => run(p, admin, "open")).toThrow("Active au moins");
+    // No consent step: the host switches it on and can type the key too.
+    expect(() => run(p, star, "consent")).toThrow("Action inconnue");
+    expect(() => run(p, star, "withdraw")).toThrow("Action inconnue");
+    p = run(p, admin, "edit", { questionId: "q11", patch: { enabled: true } });
+    p = run(p, admin, "private", { questionId: "q11", text: "3" });
+    p = run(p, admin, "open");
+    expect(view(p, guest(), 1).question?.note).toBe("");
+    p = run(p, guest(), "submit", { value: "3" });
+    p = run(p, guest("bob"), "submit", { value: "12" });
+    p = run(p, admin, "reveal");
+    expect(view(p, guest(), 1).answer?.text).toBe("3");
+    // Moving on keeps its key, like any other round.
+    p = run(p, admin, "next");
+    expect(p.secrets.q11.text).toBe("3");
+    // Skipped from the admin: switched off, it is never opened.
+    p = party("q3");
+    p.questions.push(
+      structuredClone(seedQuestions.find((q) => q.id === "q11")!),
+    );
+    p = run(p, admin, "open");
+    p = run(p, admin, "close");
+    expect(run(p, admin, "next").phase).toBe("finished");
+  });
+  it("swaps the body count's old consent note in stored parties", () => {
+    const p = createParty("123456", { admin: "x", marlene: "y" });
+    const q11 = p.questions.find((q) => q.id === "q11")!;
+    const fresh = q11.note;
+    q11.note =
+      "Facultatif et privé. Consentement explicite de Marlène requis. Retrait et passage sans pénalité.";
+    const upgraded = applySuppliedAnswers(p);
+    expect(upgraded.questions.find((q) => q.id === "q11")!.note).toBe(fresh);
+    expect(applySuppliedAnswers(upgraded)).toBe(upgraded);
   });
   it("limits PIN attempts and uses a fictional secret", () => {
     let p = run(pinParty(), admin, "open");
@@ -555,6 +575,110 @@ describe("submissions, timers, drawing and winner races", () => {
     p = run(p, admin, "leaderboard");
     p = run(p, admin, "next");
     expect(p.phase).toBe("finished");
+  });
+});
+describe("Marlène plays like a guest", () => {
+  const me: Actor = { role: "marlene", playerId: "star" };
+  // The usual two guests, with Marlène signed in from her own screen.
+  function withMarlene(id: string, active = true) {
+    const p = party(id);
+    p.players.push({
+      id: "star",
+      nickname: "Marlène",
+      avatar: 2,
+      active,
+      joinedAt: 1002,
+      role: "marlene",
+    });
+    return p;
+  }
+  function openWith(id: string, key: Record<string, unknown>, active = true) {
+    let p = withMarlene(id, active);
+    p = run(p, star, "private", { questionId: id, ...key });
+    return run(p, admin, "open");
+  }
+  it("answers, gets scored and is ranked with the guests", () => {
+    let p = openWith("q3", { answers: ["Elle a fait pipi"] });
+    p = run(p, me, "submit", { value: ["Elle a fait pipi"] });
+    expect(view(p, me, 1).submitted).toBe(true);
+    p = run(p, guest(), "submit", { value: ["Elle a vomi sur le tapis"] });
+    p = run(p, guest("bob"), "submit", { value: ["Elle a vomi sur le tapis"] });
+    expect(p.phase).toBe("reveal");
+    expect(leaderboard(p).map((x) => [x.id, x.score])).toEqual([
+      ["star", 1],
+      ["alice", -1],
+      ["bob", -1],
+    ]);
+    const v = view(p, me, 1);
+    expect(v.result).toMatchObject({ delta: 1, correct: true });
+    expect(v.players.map((x) => x.id)).toContain("star");
+    // The host is never ranked.
+    p.players.push({
+      id: "host",
+      nickname: "Hôte",
+      avatar: 3,
+      active: true,
+      joinedAt: 1003,
+      role: "admin",
+    });
+    expect(leaderboard(p).map((x) => x.id)).not.toContain("host");
+  });
+  it("keeps a normal round open until she has answered too", () => {
+    let p = openWith("q3", { answers: ["Elle a fait pipi"] });
+    expect(view(p, guest(), 1).roundPlayers).toBe(3);
+    p = run(p, guest(), "submit", { value: ["Elle a fait pipi"] });
+    p = run(p, guest("bob"), "submit", { value: ["Elle a fait pipi"] });
+    expect(p.phase).toBe("question_open");
+    p = run(p, me, "submit", { value: ["Elle a fait pipi"] });
+    expect(p.phase).toBe("reveal");
+    // Signed out, she no longer holds the round up.
+    p = openWith("q3", { answers: ["Elle a fait pipi"] }, false);
+    expect(view(p, guest(), 1).roundPlayers).toBe(2);
+    p = run(p, guest(), "submit", { value: ["Elle a fait pipi"] });
+    p = run(p, guest("bob"), "submit", { value: ["Elle a fait pipi"] });
+    expect(p.phase).toBe("reveal");
+  });
+  it("leads the drawing, creative and Pictionary rounds instead of answering", () => {
+    const drawing = openWith("q17", { prompt: "Un chat en soirée" });
+    const creative = run(withMarlene("q15"), admin, "open");
+    const pictionary = openWith("q16", { text: "Éléphant rose" });
+    for (const [p, value] of [
+      [drawing, [stroke]],
+      [creative, "Mon chat a mangé mon agenda"],
+      [pictionary, "Éléphant rose"],
+    ] as const) {
+      expect(() => run(p, me, "submit", { value })).toThrow("mènes");
+      expect(view(p, guest(), 1).roundPlayers).toBe(2);
+    }
+    // The guests' answers alone close the drawing and creative rounds.
+    let p = run(drawing, guest(), "submit", { value: [stroke] });
+    p = run(p, guest("bob"), "submit", { value: [stroke] });
+    expect(p.phase).toBe("drawing_submissions_closed");
+    p = run(creative, guest(), "submit", { value: "J’ai piscine" });
+    // She only sees the excuses she judges once the round is closed.
+    expect(view(p, me, 1).submissions).toBeUndefined();
+    p = run(p, guest("bob"), "submit", { value: "Mon hamster est malade" });
+    expect(p.phase).toBe("submissions_closed");
+    p = run(p, admin, "reveal");
+    expect(view(p, me, 1).submissions).toHaveLength(2);
+  });
+  it("never sees the others' answers while a round is open", () => {
+    let p = openWith("q3", { answers: ["Elle a fait pipi"] });
+    p = run(p, guest(), "submit", { value: ["Elle a vomi sur le tapis"] });
+    const v = view(p, me, 1);
+    expect(v.submissions).toBeUndefined();
+    expect(v.events).toBeUndefined();
+    expect(v.submissionCount).toBe(1);
+  });
+  it("answers a reveal round about herself and can still reveal it herself", () => {
+    let p = openWith("q14", { text: "Un voyage" });
+    p = run(p, me, "submit", { value: "Un voyage" });
+    p = run(p, guest(), "submit", { value: "Une maison" });
+    p = run(p, guest("bob"), "submit", { value: "Un bateau" });
+    expect(p.phase).toBe("submissions_closed");
+    p = run(p, admin, "allowReveal", { allowed: true });
+    p = run(p, me, "starReveal");
+    expect(p.phase).toBe("reveal");
   });
 });
 describe("selfies", () => {

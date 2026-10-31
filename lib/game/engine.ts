@@ -1,6 +1,7 @@
 import type {
   Actor,
   Command,
+  Participant,
   Party,
   Question,
   RankedPlayer,
@@ -9,7 +10,7 @@ import type {
   Submission,
   View,
 } from "./types";
-import { OPEN, REVEALED, isMultiSelect } from "./types";
+import { OPEN, REVEALED, isMultiSelect, marleneLeads } from "./types";
 import { CLIP_MAX } from "./clip";
 import { PIN_LENGTH, isMarleneName, isPin, nicknameKey } from "./vip";
 export class GameError extends Error {
@@ -74,9 +75,20 @@ export function setPhoto(
   else delete player.photo;
   return { party: s, previous };
 }
+// Everyone who plays and is ranked: the guests and Marlène, never the host.
+function isPlayer(p: Participant) {
+  return p.active && p.role !== "admin";
+}
+// The players expected to answer the current round: Marlène sits out the rounds she leads.
+function roundPlayers(s: Party) {
+  const q = s.questions[s.index];
+  return s.players.filter(
+    (p) => isPlayer(p) && !(p.role === "marlene" && marleneLeads(q?.kind)),
+  );
+}
 export function leaderboard(s: Party): RankedPlayer[] {
   const rows = s.players
-    .filter((p) => p.active && (!p.role || p.role === "guest"))
+    .filter(isPlayer)
     .map((p) => {
       const events = s.events.filter(
         (e) => e.playerId === p.id && e.generation === s.generation,
@@ -286,10 +298,8 @@ function everyoneAnswered(s: Party) {
   const answered = new Set(
     (s.submissions[s.roundId] ?? []).map((x) => x.playerId),
   );
-  const guests = s.players.filter(
-    (p) => p.active && (!p.role || p.role === "guest"),
-  );
-  return guests.length > 0 && guests.every((p) => answered.has(p.id));
+  const players = roundPlayers(s);
+  return players.length > 0 && players.every((p) => answered.has(p.id));
 }
 function publicQuestion(q: Question): Question {
   return {
@@ -304,15 +314,10 @@ function publicQuestion(q: Question): Question {
     duration: q.duration,
     tolerance: q.tolerance,
     unit: q.unit,
-    note: q.sensitive
-      ? "Facultatif. Tu peux passer sans pénalité."
-      : q.kind === "number"
-        ? q.note
-        : "",
+    note: q.kind === "number" ? q.note : "",
     aliases: [],
     bonus: q.bonus,
     attempts: q.attempts,
-    sensitive: q.sensitive,
     media: q.media,
     clipStart: q.clipStart,
     clipEnd: q.clipEnd,
@@ -368,6 +373,7 @@ export function view(
     submitted: !!me,
     mySubmission: me,
     submissionCount: subs.filter((x) => !x.moderated).length,
+    roundPlayers: roundPlayers(s).length,
     gallery,
     strokes: actor ? s.strokes : [],
     winner: revealed ? s.winner : undefined,
@@ -396,15 +402,14 @@ export function view(
     v.secrets = s.secrets;
     v.submissions = subs;
     v.events = s.events.filter((event) => event.generation === s.generation);
-    v.consent = s.consent;
     v.revealAllowed = s.revealAllowed;
   }
   if (actor?.role === "marlene") {
     v.questions = s.questions;
     v.secrets = s.secrets;
-    v.consent = s.consent;
     v.revealAllowed = s.revealAllowed;
-    if (q?.kind === "creative")
+    // The anonymous answers she judges, once the round is closed: never while it's open.
+    if (q?.kind === "creative" && !OPEN.includes(s.phase))
       v.submissions = subs
         .filter((x) => !x.moderated)
         .map((x) => ({ ...x, playerId: "" }));
@@ -423,18 +428,6 @@ export function reduce(
   );
   if (original.requests.includes(cmd.id)) return original;
   const s = structuredClone(original);
-  if (s.consent && now - s.consentAt > 7200000) {
-    s.consent = false;
-    for (const item of s.questions.filter((x) => x.sensitive)) {
-      delete s.secrets[item.id];
-      item.enabled = false;
-    }
-    if (s.questions[s.index]?.sensitive) {
-      delete s.submissions[s.roundId];
-      s.phase = "submissions_closed";
-      s.deadline = 0;
-    }
-  }
   const q = s.questions[s.index];
   const isAdmin = actor.role === "admin";
   const isStar = actor.role === "marlene";
@@ -467,8 +460,6 @@ export function reduce(
     [
       "private",
       "vote",
-      "consent",
-      "withdraw",
       "starReveal",
       "stroke",
       "undoStroke",
@@ -530,10 +521,6 @@ export function reduce(
       if (s.phase === "lobby")
         s.index = s.questions.findIndex((q) => q.enabled);
       must(s.index >= 0, "Active au moins une manche.");
-      must(
-        !s.questions[s.index].sensitive || s.consent,
-        "Marlène doit donner son consentement.",
-      );
       const opening = s.questions[s.index];
       must(
         opening.kind !== "blind" || opening.media.length,
@@ -553,12 +540,17 @@ export function reduce(
     }
     case "submit": {
       must(
-        actor.role === "guest" &&
+        (actor.role === "guest" || actor.role === "marlene") &&
           s.players.some((p) => p.id === actor.playerId && p.active),
         "Rejoins la fête pour jouer.",
         403,
       );
       must(q && OPEN.includes(s.phase), "Les réponses sont fermées.", 409);
+      must(
+        actor.role !== "marlene" || !marleneLeads(q.kind),
+        "C’est toi qui mènes cette manche : les invités jouent.",
+        403,
+      );
       must(now <= s.deadline, "Le temps est écoulé.", 409);
       const list = (s.submissions[s.roundId] ??= []);
       const previous = list.find((x) => x.playerId === actor.playerId);
@@ -580,7 +572,7 @@ export function reduce(
       const value = cmd.value;
       must(value !== null && value !== undefined, "Ajoute ta réponse.");
       if (q.kind === "drawing") validateStrokes(value);
-      else if (q.kind === "number" || q.sensitive)
+      else if (q.kind === "number")
         must(
           typeof value === "number" &&
             Number.isFinite(value) &&
@@ -686,13 +678,7 @@ export function reduce(
         ].includes(s.phase),
         "Ferme la manche avant de passer.",
       );
-      const next = s.questions.findIndex(
-        (x, i) => i > s.index && x.enabled && (!x.sensitive || s.consent),
-      );
-      if (q?.sensitive) {
-        delete s.secrets[q.id];
-        delete s.submissions[s.roundId];
-      }
+      const next = s.questions.findIndex((x, i) => i > s.index && x.enabled);
       s.index = next < 0 ? s.index : next;
       s.phase = next < 0 ? "finished" : "next_round";
       s.deadline = 0;
@@ -707,28 +693,10 @@ export function reduce(
       s.strokes = [];
       s.audio.playing = false;
       s.revealAllowed = false;
-      s.consent = false;
-      s.consentAt = 0;
-      for (const item of s.questions.filter((x) => x.sensitive)) {
-        delete s.secrets[item.id];
-        for (const [rid, subs] of Object.entries(s.submissions))
-          if (
-            s.events.some(
-              (e) => e.roundId === rid && e.questionId === item.id,
-            ) ||
-            (rid === s.roundId && q?.sensitive)
-          )
-            delete s.submissions[rid];
-      }
       break;
     case "private": {
       const target = s.questions.find((x) => x.id === cmd.questionId);
       must(target, "Question introuvable.");
-      must(
-        !target.sensitive || (s.consent && isStar),
-        "Seule Marlène peut fournir cette réponse, après consentement.",
-        403,
-      );
       must(
         !(target.id === q?.id && REVEALED.includes(s.phase)),
         "La réponse est déjà révélée.",
@@ -905,24 +873,6 @@ export function reduce(
       s.phase = "reveal";
       s.revealAllowed = false;
       break;
-    case "consent":
-      must(isStar, "Seule Marlène peut consentir.", 403);
-      s.consent = true;
-      s.consentAt = now;
-      break;
-    case "withdraw":
-      must(isStar, "Seule Marlène peut retirer son consentement.", 403);
-      s.consent = false;
-      for (const item of s.questions.filter((x) => x.sensitive)) {
-        item.enabled = false;
-        delete s.secrets[item.id];
-      }
-      if (q?.sensitive) {
-        delete s.submissions[s.roundId];
-        s.phase = "submissions_closed";
-        s.deadline = 0;
-      }
-      break;
     case "edit": {
       const item = s.questions.find((x) => x.id === cmd.questionId);
       must(item, "Question introuvable.");
@@ -955,13 +905,7 @@ export function reduce(
         item.confirmed = false;
         delete s.secrets[item.id];
       }
-      if (patch.enabled !== undefined) {
-        must(
-          !item.sensitive || s.consent || !patch.enabled,
-          "Marlène doit donner son consentement.",
-        );
-        item.enabled = !!patch.enabled;
-      }
+      if (patch.enabled !== undefined) item.enabled = !!patch.enabled;
       if (patch.kind) {
         must(
           [
@@ -979,10 +923,6 @@ export function reduce(
             "drawing",
           ].includes(patch.kind),
           "Type inconnu.",
-        );
-        must(
-          !item.sensitive || patch.kind === "reveal",
-          "Cette manche reste facultative.",
         );
         item.kind = patch.kind;
         item.confirmed = false;
@@ -1079,7 +1019,6 @@ export function reduce(
         generated: [],
         confirmed: false,
         enabled: true,
-        sensitive: false,
         media: [],
         note: "À personnaliser.",
       });
@@ -1201,14 +1140,8 @@ export function reduce(
       s.deadline = 0;
       s.startedAt = 0;
       s.winner = undefined;
-      s.consent = false;
-      s.consentAt = 0;
       s.revealAllowed = false;
       s.audio = { playing: false, at: 0, offset: 0 };
-      for (const item of s.questions.filter((x) => x.sensitive)) {
-        delete s.secrets[item.id];
-        item.enabled = false;
-      }
       break;
     default:
       throw new GameError("Action inconnue.");

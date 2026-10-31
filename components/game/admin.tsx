@@ -145,7 +145,7 @@ export function Admin() {
             </div>
             <div className="stat">
               <b>
-                {d.submissionCount} / {d.players.length}
+                {d.submissionCount} / {d.roundPlayers}
               </b>
               <span>Participations de la manche</span>
             </div>
@@ -318,18 +318,12 @@ export function Admin() {
                 {question && !REVEALED.includes(d.phase) && (
                   <section className="panel">
                     <h2>Le petit secret de la manche</h2>
-                    {question.sensitive ? (
-                      <p className="notice">
-                        Marlène gère seule sa réponse intime depuis son espace.
-                      </p>
-                    ) : (
-                      <PrivateForm
-                        key={`${question.id}-${d.roundId}`}
-                        q={d.questions!.find((q) => q.id === question.id)!}
-                        c={c}
-                        secret={d.secrets?.[question.id]}
-                      />
-                    )}
+                    <PrivateForm
+                      key={`${question.id}-${d.roundId}`}
+                      q={d.questions!.find((q) => q.id === question.id)!}
+                      c={c}
+                      secret={d.secrets?.[question.id]}
+                    />
                     <div className="divider" />
                     <label className="checkbox-label">
                       <input
@@ -672,9 +666,9 @@ export function Admin() {
                 <div className="divider" />
                 <h3>Questions facultatives</h3>
                 <p className="small-text muted">
-                  Le défi photo est désactivé au départ. La manche intime
-                  requiert le consentement explicite de Marlène ; elle peut le
-                  retirer à tout instant.
+                  Le défi photo et « Body count ? » sont désactivés au départ.
+                  Active-les dans Les manches si Marlène est d’accord, ou
+                  passe-les.
                 </p>
                 <div className="divider" />
                 <h3>Code VIP de Marlène</h3>

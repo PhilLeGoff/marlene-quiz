@@ -184,7 +184,7 @@ export function Present() {
                     />
                   )}
                   <p className="progress-caption" style={{ fontSize: 20 }}>
-                    {d.submissionCount} / {d.players.length} participations
+                    {d.submissionCount} / {d.roundPlayers} participations
                     reçues
                   </p>
                 </div>

@@ -197,17 +197,17 @@ export function Answer({ data, c }: { data: View; c: PartyClient }) {
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        void submit(q.kind === "number" || q.sensitive ? Number(text) : text);
+        void submit(q.kind === "number" ? Number(text) : text);
       }}
       className="stack"
     >
       <label>
-        {q.kind === "number" || q.sensitive
+        {q.kind === "number"
           ? `Ton estimation (${q.unit})`
           : q.kind === "pictionary"
             ? "Alors, c’est quoi ce dessin ?"
             : "Ta réponse"}
-        {q.kind === "number" || q.sensitive ? (
+        {q.kind === "number" ? (
           <input
             className="number-answer"
             type="number"
@@ -254,11 +254,6 @@ export function Answer({ data, c }: { data: View; c: PartyClient }) {
             : "Envoyer ma réponse"}{" "}
         <Send size={18} />
       </button>
-      {q.sensitive && (
-        <p className="answer-helper">
-          Tu peux simplement passer, sans aucun point perdu.
-        </p>
-      )}
     </form>
   );
 }
