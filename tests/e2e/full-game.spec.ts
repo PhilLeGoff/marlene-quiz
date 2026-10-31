@@ -458,19 +458,19 @@ test("a whole party from the guest phones, Marlène’s space, the TV and the ho
     await next();
   }
 
-  // ── Pyjama: the outfit picker ─────────────────────────────────────────────────────
+  // ── Bedtime must-have: a single choice, so no "several answers" hint ─────────────
   await open("q7");
-  await expect(alice.locator(".outfit-display svg")).toBeVisible();
-  await pick(alice, ["Chaussettes", "T-shirt", "Short"]);
+  await expect(alice.locator(".question-hint")).toHaveCount(0);
+  await pick(alice, ["Des chaussettes"]);
   await expect(
     alice.getByRole("heading", { name: "C’est dans la boîte !" }),
   ).toBeVisible(PHONE);
-  await pick(bob, ["Pyjama intégral"]);
+  await pick(bob, ["Son doudou"]);
   await submitted(bob);
   await settle();
-  await revealed("Chaussettes + T-shirt + Short");
-  await expect(result(alice)).toHaveClass(/positive/, PHONE);
-  await expect(result(bob)).toHaveClass(/negative/, PHONE);
+  await revealed("Des chaussettes");
+  await expect(result(alice).locator("strong")).toHaveText("+1 point", PHONE);
+  await expect(result(bob).locator("strong")).toHaveText("-1 point", PHONE);
   await next();
 
   // ── Screen time: Bob doesn't answer, so the host closes it ────────────────────────

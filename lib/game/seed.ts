@@ -138,13 +138,24 @@ export const seedQuestions: Question[] = [
   })),
   q(
     7,
-    "Comment dort Marlène ?",
-    "outfit",
-    ["Chaussettes", "Pyjama intégral", "T-shirt", "Bonnet de nuit", "Short"],
+    "Quel est l’élément incontournable de Marlène pour aller dormir ?",
+    "choice",
+    [
+      "Son doudou",
+      "Un masque de nuit",
+      "Des chaussettes",
+      "Un verre d’eau",
+      "Des bouchons d’oreilles",
+      "Un podcast de true crime",
+    ],
     {
       confirmed: true,
-      generated: ["Pyjama intégral", "Bonnet de nuit"],
-      note: "Bonne combinaison fournie : chaussettes + short + t-shirt. Pyjama intégral et bonnet de nuit sont des propositions pièges modifiables.",
+      generated: [
+        "Un masque de nuit",
+        "Des bouchons d’oreilles",
+        "Un podcast de true crime",
+      ],
+      note: "Bonne réponse fournie : des chaussettes. Masque de nuit, bouchons d’oreilles et podcast de true crime sont des propositions pièges générées et modifiables.",
     },
   ),
   q(9, "Quel est le temps d’écran de Marlène ?", "number", [], {
@@ -228,7 +239,7 @@ export const suppliedAnswers: Record<string, Secret> = {
   q4: { answers: ["Son cheval"] },
   q10: { answers: ["Prof de plongée"] },
   q13: { answers: ["Garder ses cotons-tiges usagés dans une boîte"] },
-  q7: { answers: ["Chaussettes", "T-shirt", "Short"] },
+  q7: { answers: ["Des chaussettes"] },
   q6a: {
     answers: ["Noir Désir — Marlène"],
     text: "Marlène",
@@ -337,6 +348,33 @@ export function applySuppliedAnswers(stored: Party): Party {
       ...source.slider,
     };
   }
+  return upgradeSleepQuestion(next);
+}
+// q7 used to be the multi-select pyjama round "Comment dort Marlène ?". Parties seeded
+// with it get the single-answer sleep question instead, as long as the host hasn't
+// renamed it and the round hasn't been reached or scored yet.
+const legacySleepTitle = "Comment dort Marlène ?";
+function upgradeSleepQuestion(original: Party): Party {
+  const at = original.questions.findIndex((q) => q.id === "q7");
+  if (at < 0 || original.questions[at].title !== legacySleepTitle)
+    return original;
+  const reached =
+    at < original.index ||
+    (at === original.index &&
+      !["lobby", "next_round"].includes(original.phase));
+  if (reached || original.events.some((e) => e.questionId === "q7"))
+    return original;
+  const source = seedQuestions.find((q) => q.id === "q7")!;
+  const next = structuredClone(original);
+  Object.assign(next.questions[at], {
+    title: source.title,
+    kind: source.kind,
+    options: [...source.options],
+    generated: [...source.generated],
+    note: source.note,
+    confirmed: true,
+  });
+  next.secrets.q7 = structuredClone(suppliedAnswers.q7);
   return next;
 }
 export function createParty(

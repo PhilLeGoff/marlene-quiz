@@ -14,6 +14,7 @@ import {
   view,
 } from "../lib/game/engine";
 import type { Actor, Command, Party, Stroke } from "../lib/game/types";
+import { isMultiSelect } from "../lib/game/types";
 const admin: Actor = { role: "admin" },
   star: Actor = { role: "marlene" },
   guest = (id = "alice"): Actor => ({ role: "guest", playerId: id });
@@ -104,6 +105,101 @@ describe("seed bank", () => {
     expect(height(upgraded).slider).toEqual({ min: 140, max: 200, step: 1 });
     expect(height(p).slider).toBeUndefined();
     expect(applySuppliedAnswers(upgraded)).toBe(upgraded);
+  });
+  it("asks the sleep question as a single choice with socks as the key", () => {
+    const p = createParty("123456", { admin: "x", marlene: "y" });
+    const sleep = p.questions.find((q) => q.id === "q7")!;
+    expect(sleep.title).toBe(
+      "Quel est l’élément incontournable de Marlène pour aller dormir ?",
+    );
+    expect(sleep.kind).toBe("choice");
+    expect(isMultiSelect(sleep.kind)).toBe(false);
+    expect(sleep.options).toEqual(
+      expect.arrayContaining([
+        "Des chaussettes",
+        "Son doudou",
+        "Un verre d’eau",
+      ]),
+    );
+    expect(p.secrets.q7).toEqual({ answers: ["Des chaussettes"] });
+  });
+  it("swaps the old pyjama round for the sleep question in stored parties", () => {
+    // A party seeded before the change: old q7, preset already marked as applied.
+    const legacy = () => {
+      const p = createParty("123456", { admin: "x", marlene: "y" });
+      Object.assign(
+        p.questions.find((q) => q.id === "q7")!,
+        {
+          title: "Comment dort Marlène ?",
+          kind: "outfit",
+          options: [
+            "Chaussettes",
+            "Pyjama intégral",
+            "T-shirt",
+            "Bonnet de nuit",
+            "Short",
+          ],
+          generated: ["Pyjama intégral", "Bonnet de nuit"],
+          note: "Bonne combinaison fournie : chaussettes + short + t-shirt.",
+          duration: 90,
+        },
+      );
+      p.secrets.q7 = { answers: ["Chaussettes", "T-shirt", "Short"] };
+      return p;
+    };
+    const sleep = (x: Party) => x.questions.find((q) => q.id === "q7")!;
+    const seeded = seedQuestions.find((q) => q.id === "q7")!;
+
+    const stored = legacy();
+    const upgraded = applySuppliedAnswers(stored);
+    expect(sleep(upgraded)).toMatchObject({
+      title: seeded.title,
+      kind: "choice",
+      options: seeded.options,
+      generated: seeded.generated,
+      note: seeded.note,
+      confirmed: true,
+      duration: 90, // the host's other settings stay
+    });
+    expect(upgraded.secrets.q7).toEqual({ answers: ["Des chaussettes"] });
+    expect(sleep(stored).title).toBe("Comment dort Marlène ?");
+    expect(applySuppliedAnswers(upgraded)).toBe(upgraded);
+
+    // Queued as the next round but not opened yet: still swapped.
+    const queued = legacy();
+    queued.phase = "next_round";
+    queued.index = queued.questions.findIndex((q) => q.id === "q7");
+    expect(sleep(applySuppliedAnswers(queued)).kind).toBe("choice");
+
+    // The host renamed it: theirs now, left alone.
+    const renamed = legacy();
+    sleep(renamed).title = "Comment dort Marlène, vraiment ?";
+    expect(applySuppliedAnswers(renamed)).toBe(renamed);
+
+    // Open, already played, or scored: left alone.
+    const open = legacy();
+    open.phase = "question_open";
+    open.index = open.questions.findIndex((q) => q.id === "q7");
+    expect(sleep(applySuppliedAnswers(open)).kind).toBe("outfit");
+    const past = legacy();
+    past.phase = "next_round";
+    past.index = past.questions.findIndex((q) => q.id === "q7") + 1;
+    expect(sleep(applySuppliedAnswers(past)).kind).toBe("outfit");
+    const scored = legacy();
+    scored.events.push({
+      id: "e1",
+      roundId: "r1",
+      questionId: "q7",
+      playerId: "alice",
+      delta: 1,
+      correct: true,
+      elapsed: 1000,
+      reason: "",
+      at: 1000,
+      adjustment: false,
+      generation: 1,
+    });
+    expect(applySuppliedAnswers(scored)).toBe(scored);
   });
   it("retains seven choices and protects optional rounds", () => {
     expect(seedQuestions.find((q) => q.id === "q4")?.options).toHaveLength(7);
