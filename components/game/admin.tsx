@@ -47,6 +47,7 @@ import { Modal } from "./modal";
 import { DrawingCanvas, DrawingPreview } from "./canvas";
 import type { Question } from "@/lib/game/types";
 import { kindLabels, OPEN, REVEALED } from "@/lib/game/types";
+import { formatTime, isTime } from "@/lib/game/time";
 export function Admin() {
   const c = useParty("admin"),
     d = c.data;
@@ -380,7 +381,10 @@ export function Admin() {
                             ? "Un chef-d’œuvre attend son verdict."
                             : Array.isArray(sub.value)
                               ? sub.value.join(", ")
-                              : String(sub.value)}
+                              : typeof sub.value === "number" &&
+                                  isTime(question)
+                                ? formatTime(sub.value)
+                                : String(sub.value)}
                         </div>
                       )}
                       {!sub.moderated && (

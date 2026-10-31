@@ -28,7 +28,7 @@ function legacyParty(pin = "123456") {
     enabled: true,
   };
   p.questions.splice(
-    p.questions.findIndex((q) => q.id === "q9"),
+    p.questions.findIndex((q) => q.id === "run5k"),
     0,
     q8,
   );
@@ -260,7 +260,7 @@ describe("upgrading a stored party", () => {
     const p = applySuppliedAnswers(stored);
     expect(ids(p)).not.toContain("q8");
     expect(p.phase).toBe("next_round");
-    expect(p.questions[p.index].id).toBe("q9");
+    expect(p.questions[p.index].id).toBe("run5k");
   });
 });
 

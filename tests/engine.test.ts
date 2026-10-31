@@ -99,7 +99,7 @@ describe("seed bank", () => {
     const p = createParty("123456", { admin: "x", marlene: "y" });
     const height = (x: Party) => x.questions.find((q) => q.id === "q5")!;
     expect(height(p).slider).toEqual({ min: 140, max: 200, step: 1 });
-    expect(p.questions.find((q) => q.id === "q9")!.slider).toBeUndefined();
+    expect(p.questions.find((q) => q.id === "q10")!.slider).toBeUndefined();
     delete height(p).slider;
     const upgraded = applySuppliedAnswers(p);
     expect(height(upgraded).slider).toEqual({ min: 140, max: 200, step: 1 });

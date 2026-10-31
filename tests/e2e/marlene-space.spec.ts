@@ -54,30 +54,31 @@ test("Marlène signs in with her PIN, keeps her answers private, and controls he
   const phone = await guestCtx.newPage();
   await joinWithSelfie(phone, unique("Curieuse"));
 
-  // Her answer to the screen-time question, typed in her space, stays out of sight.
-  const secret = 317;
-  await mp.getByLabel("Choisir une manche").selectOption("q9");
+  // Her best 5 km time, typed in her space as mm:ss, is kept in seconds out of sight.
+  const secret = 1877; // 31:17
+  await mp.getByLabel("Choisir une manche").selectOption("run5k");
   const form = mp.locator(".secret-form");
   const edit = form.getByRole("button", { name: "Modifier la réponse" });
   if (await edit.isVisible()) await edit.click();
-  await form.getByLabel(/La bonne valeur/).fill(String(secret));
+  await form.getByLabel(/Le bon temps/).fill("31:17");
   await form.getByRole("button", { name: "Enregistrer en privé" }).click();
   await expect(form.getByText("Réponse déjà enregistrée")).toBeVisible();
-  await expect(form).toContainText(`${secret} minutes / jour`);
+  await expect(form).toContainText("31:17");
   // Reloading her phone keeps her signed in and the answer saved.
   await mp.reload();
   await expect(
     mp.getByRole("heading", { name: "Ce soir, c’est toi la reine." }),
   ).toBeVisible();
-  await mp.getByLabel("Choisir une manche").selectOption("q9");
-  await expect(form).toContainText(`${secret} minutes / jour`);
-  expect((await state(host)).secrets.q9.number).toBe(secret);
+  await mp.getByLabel("Choisir une manche").selectOption("run5k");
+  await expect(form).toContainText("31:17");
+  expect((await state(host)).secrets.run5k.number).toBe(secret);
   for (const view of [
     await state(guestCtx.request, "guest"),
     await projectorState(guestCtx.request),
   ]) {
     expect(view.secrets).toBeUndefined();
     expect(JSON.stringify(view)).not.toContain(String(secret));
+    expect(JSON.stringify(view)).not.toContain("31:17");
   }
 
   // The intimate round: off until she agrees, and her answer goes when she withdraws.

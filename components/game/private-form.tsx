@@ -4,6 +4,7 @@ import { Check, LockKeyhole, Save, SquarePen } from "lucide-react";
 import type { Question, Secret } from "@/lib/game/types";
 import type { PartyClient } from "./use-party";
 import { PIN_LENGTH } from "@/lib/game/vip";
+import { formatNumber, formatTime, isTime, parseTime } from "@/lib/game/time";
 export function PrivateForm({
   q,
   c,
@@ -14,8 +15,12 @@ export function PrivateForm({
   secret?: Secret;
 }) {
   const [editing, setEditing] = useState(false);
+  // A time key (the 5 km) is typed as mm:ss and stored in seconds.
+  const time = isTime(q);
+  const shown = (n?: number) =>
+    n === undefined ? "" : time ? formatTime(n) : n.toString();
   const [text, setText] = useState(secret?.text ?? ""),
-    [num, setNum] = useState(secret?.number?.toString() ?? ""),
+    [num, setNum] = useState(shown(secret?.number)),
     [prompt, setPrompt] = useState(secret?.prompt ?? ""),
     [aliases, setAliases] = useState(secret?.aliases?.join("\n") ?? ""),
     [answers, setAnswers] = useState(secret?.answers ?? []),
@@ -61,7 +66,7 @@ export function PrivateForm({
             {secret?.answers?.join(" + ") ??
               secret?.text ??
               (secret?.number !== undefined
-                ? `${secret.number} ${q.unit}`
+                ? formatNumber(q, secret.number)
                 : secret?.prompt)}
           </strong>
         </p>
@@ -70,7 +75,7 @@ export function PrivateForm({
           className="btn small"
           onClick={() => {
             setText(secret?.text ?? "");
-            setNum(secret?.number?.toString() ?? "");
+            setNum(shown(secret?.number));
             setPrompt(secret?.prompt ?? "");
             setAnswers(secret?.answers ?? []);
             setAliases(secret?.aliases?.join("\n") ?? "");
@@ -89,7 +94,7 @@ export function PrivateForm({
         e.preventDefault();
         const values: Record<string, unknown> = { questionId: q.id };
         if (options) values.answers = answers;
-        else if (isNum) values.number = Number(num);
+        else if (isNum) values.number = time ? parseTime(num) : Number(num);
         else if (isDrawing) values.prompt = prompt;
         else {
           values.text = text;
@@ -142,6 +147,26 @@ export function PrivateForm({
             </label>
           ))}
         </div>
+      ) : isNum && time ? (
+        <label>
+          Le bon temps <small>Minutes et secondes, par exemple 27:30</small>
+          <input
+            required
+            inputMode="decimal"
+            autoComplete="off"
+            placeholder="27:30"
+            value={num}
+            onChange={(e) => {
+              setSaved(false);
+              setNum(e.target.value);
+              e.target.setCustomValidity(
+                parseTime(e.target.value) === null
+                  ? "Écris le temps en minutes et secondes, par exemple 27:30."
+                  : "",
+              );
+            }}
+          />
+        </label>
       ) : isNum ? (
         <label>
           La bonne valeur ({q.unit})
