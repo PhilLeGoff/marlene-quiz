@@ -34,8 +34,8 @@ async function squareJpeg(file: File): Promise<Blob> {
     ),
   );
 }
-// Every guest needs a selfie to play: with no photo yet there is no way back to the game,
-// only once one is saved can they come here to change it and leave again.
+// Every guest, and Marlène, needs a selfie to play: with no photo yet there is no way back
+// to the game, only once one is saved can they come here to change it and leave again.
 export function SelfieStep({
   data,
   c,
@@ -70,11 +70,15 @@ export function SelfieStep({
     setBusy(true);
     setError("");
     try {
-      const r = await fetch("/api/avatar", {
-        method: "POST",
-        headers: { "Content-Type": "image/jpeg" },
-        body: photo!.blob,
-      });
+      // Marlène's session is her own cookie: the avatar route reads it with ?as=marlene.
+      const r = await fetch(
+        data.role === "marlene" ? "/api/avatar?as=marlene" : "/api/avatar",
+        {
+          method: "POST",
+          headers: { "Content-Type": "image/jpeg" },
+          body: photo!.blob,
+        },
+      );
       if (!r.ok)
         throw new Error(
           ((await r.json().catch(() => ({}))) as { error?: string }).error,

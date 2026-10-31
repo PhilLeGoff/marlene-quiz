@@ -1,5 +1,5 @@
-// Marlène's VIP space on her phone: the PIN pad, her private answers, playing a round like
-// the guests, and the VIP code the host can change.
+// Marlène's VIP space on her phone: the PIN pad, her selfie, no answer keys, playing a round
+// like the guests, and the VIP code the host can change.
 import { test, expect } from "@playwright/test";
 import {
   api,
@@ -9,15 +9,16 @@ import {
   marleneSignIn,
   PHONE,
   PHONE_SIZE,
-  projectorState,
+  origin,
   resetParty,
   signOut,
   state,
+  takeSelfie,
   typePin,
   unique,
 } from "./helpers";
 
-test("Marlène signs in with her PIN, keeps her answers private, and plays a round like the guests", async ({
+test("Marlène signs in with her PIN, never sees the answer keys, and plays a round like the guests", async ({
   browser,
 }) => {
   const hostCtx = await browser.newContext();
@@ -37,12 +38,44 @@ test("Marlène signs in with her PIN, keeps her answers private, and plays a rou
   const wrong = shifted(5);
   await typePin(mp, wrong, "Entrer dans mon royaume");
   await expect(mp.getByRole("alert")).toContainText("Code PIN incorrect");
-  await expect(mp.getByText("Tes petits secrets")).toHaveCount(0);
   expect((await state(starCtx.request, "marlene")).role).toBeNull();
-  await marleneSignIn(mp);
+  await marleneSignIn(mp, undefined, { selfie: false });
+  // Like every guest, she needs a selfie before anything else. If an earlier spec left her
+  // one, the host removes it, which sends her back to the step as it would a guest.
+  const signedIn = await state(starCtx.request, "marlene");
+  const herId = signedIn.playerId as string;
+  const old = signedIn.players.find(
+    (p: { id: string }) => p.id === herId,
+  )?.photo;
+  if (old) {
+    const removed = await host.delete(
+      `/api/avatar?as=admin&playerId=${encodeURIComponent(herId)}`,
+      { headers: { Origin: origin } },
+    );
+    expect(removed.ok(), await removed.text()).toBe(true);
+  }
+  const step = mp.getByRole("heading", { name: "Un selfie, et tu entres !" });
+  await expect(step).toBeVisible(PHONE);
+  await expect(mp.locator(".star-current")).toHaveCount(0);
   await expect(
-    mp.getByRole("heading", { name: "Tes petits secrets" }),
-  ).toBeVisible();
+    mp.getByRole("button", { name: /Plus tard|Retour à la fête/ }),
+  ).toHaveCount(0);
+  await mp.screenshot({
+    path: "outputs/marlene-space/marlene-selfie-step.png",
+  });
+  // A reload doesn't get her past it.
+  await mp.reload();
+  await expect(step).toBeVisible(PHONE);
+  await takeSelfie(mp);
+  await expect(mp.getByText("Bienvenue dans ton royaume.")).toBeVisible();
+  await expect(
+    mp
+      .locator(".player-bubble", { hasText: "Marlène" })
+      .locator("img.avatar-photo"),
+  ).toBeVisible(PHONE);
+  // No secrets form: she neither sees nor sets the answer keys.
+  await expect(mp.getByText("Tes petits secrets")).toHaveCount(0);
+  await expect(mp.locator(".secret-form")).toHaveCount(0);
   // She plays, so she is listed with the players; her code never reaches a browser.
   const mine = await state(starCtx.request, "marlene");
   expect(mine.role).toBe("marlene");
@@ -50,40 +83,32 @@ test("Marlène signs in with her PIN, keeps her answers private, and plays a rou
     mine.playerId,
   );
   expect(JSON.stringify(mine)).not.toContain(`"${MARLENE_PIN}"`);
-  // She can't run the game: that stays with the host.
+  expect(mine.secrets).toBeUndefined();
+  expect(mine.questions).toBeUndefined();
+  // She can't run the game nor set a key: that stays with the host.
   await api(starCtx.request, "marlene", "open", {}, 403);
+  await api(
+    starCtx.request,
+    "marlene",
+    "private",
+    { questionId: "q9", number: 317 },
+    403,
+  );
 
   const guestCtx = await browser.newContext(PHONE_SIZE);
   const phone = await guestCtx.newPage();
   await joinWithSelfie(phone, unique("Curieuse"));
-
-  // Her answer to the screen-time question, typed in her space, stays out of sight.
-  const secret = 317;
-  await mp.getByLabel("Choisir une manche").selectOption("q9");
-  const form = mp.locator(".secret-form");
-  const edit = form.getByRole("button", { name: "Modifier la réponse" });
-  if (await edit.isVisible()) await edit.click();
-  await form.getByLabel(/La bonne valeur/).fill(String(secret));
-  await form.getByRole("button", { name: "Enregistrer en privé" }).click();
-  await expect(form.getByText("Réponse déjà enregistrée")).toBeVisible();
-  await expect(form).toContainText(`${secret} minutes / jour`);
-  // Reloading her phone keeps her signed in and the answer saved.
-  await mp.reload();
-  await expect(
-    mp.getByRole("heading", { name: "Ce soir, c’est toi la reine." }),
-  ).toBeVisible();
-  await mp.getByLabel("Choisir une manche").selectOption("q9");
-  await expect(form).toContainText(`${secret} minutes / jour`);
-  expect((await state(host)).secrets.q9.number).toBe(secret);
-  for (const view of [
-    await state(guestCtx.request, "guest"),
-    await projectorState(guestCtx.request),
-  ]) {
-    expect(view.secrets).toBeUndefined();
-    // As a JSON number: random IDs (player, room) may contain the digits.
-    expect(JSON.stringify(view)).not.toMatch(
-      new RegExp(`[:,\\[]${secret}[,}\\]]`),
-    );
+  // Her selfie shows next to her name on the guests' phones and on the TV.
+  const tv = await (await browser.newContext()).newPage();
+  await tv.goto("/present");
+  for (const page of [phone, tv]) {
+    const hers = page
+      .locator(".player-bubble", { hasText: "Marlène" })
+      .locator("img.avatar-photo");
+    await expect(hers).toBeVisible(PHONE);
+    await expect
+      .poll(() => hers.evaluate((img: HTMLImageElement) => img.naturalWidth))
+      .toBeGreaterThan(0);
   }
 
   // No consent panel: the host simply turns the body count on, or skips it.
@@ -102,9 +127,11 @@ test("Marlène signs in with her PIN, keeps her answers private, and plays a rou
     ids: ["q4", ...ids.filter((x) => x !== "q4")],
   });
   await api(host, "admin", "open");
-  await expect(mp.locator(".secrets-panel")).not.toHaveAttribute("open", {
-    timeout: 30_000,
-  });
+  // The round's key never reaches her phone while it's open.
+  const during = await state(starCtx.request, "marlene");
+  expect(during.phase).toBe("question_open");
+  expect(during.secrets).toBeUndefined();
+  expect(during.answer).toBeUndefined();
   const horse = mp.locator(".answer-option", { hasText: "Son cheval" });
   await horse.click(PHONE);
   await mp.getByRole("button", { name: /Valider mon choix/ }).click();
@@ -129,6 +156,13 @@ test("Marlène signs in with her PIN, keeps her answers private, and plays a rou
     "Marlène",
     PHONE,
   );
+  // With her selfie on the leaderboard, on the phones and the TV.
+  for (const page of [phone, tv])
+    await expect(
+      page
+        .locator(".leaderboard-row", { hasText: "Marlène" })
+        .locator("img.avatar-photo"),
+    ).toBeVisible(PHONE);
 
   // The host changes her VIP code: her phone is signed out, the old code stops working.
   const replacement = shifted(3);
@@ -155,5 +189,6 @@ test("Marlène signs in with her PIN, keeps her answers private, and plays a rou
   await expect(mp).toHaveURL(/\/marlene$/);
 
   await signOut(phone);
-  for (const ctx of [hostCtx, starCtx, guestCtx]) await ctx.close();
+  for (const ctx of [hostCtx, starCtx, guestCtx, tv.context()])
+    await ctx.close();
 });

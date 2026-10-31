@@ -10,7 +10,13 @@ import type {
   Submission,
   View,
 } from "./types";
-import { OPEN, REVEALED, isMultiSelect, marleneLeads } from "./types";
+import {
+  OPEN,
+  REVEALED,
+  isMultiSelect,
+  keyFromMarlene,
+  marleneLeads,
+} from "./types";
 import { CLIP_MAX } from "./clip";
 import { PIN_LENGTH, isMarleneName, isPin, nicknameKey } from "./vip";
 export class GameError extends Error {
@@ -86,6 +92,29 @@ function roundPlayers(s: Party) {
     (p) => isPlayer(p) && !(p.role === "marlene" && marleneLeads(q?.kind)),
   );
 }
+function isMarlene(s: Party, playerId: string) {
+  return s.players.some((p) => p.id === playerId && p.role === "marlene");
+}
+// On "her answer is the key" rounds, what Marlène submitted this round, as a key.
+function marleneKey(s: Party, q: Question): Secret | undefined {
+  if (!keyFromMarlene(q)) return undefined;
+  const hers = (s.submissions[s.roundId] ?? []).find(
+    (x) => !x.moderated && isMarlene(s, x.playerId),
+  );
+  if (!hers) return undefined;
+  const v = hers.value;
+  if (typeof v === "number") return { number: v };
+  if (Array.isArray(v)) return { answers: v as string[] };
+  return { text: String(v) };
+}
+// What the current round is marked against: Marlène's in-game answer when it is the key,
+// otherwise the stored key (on her rounds, the host's fallback when she didn't answer).
+function marking(s: Party, q: Question) {
+  const hers = marleneKey(s, q);
+  return hers
+    ? { q: { ...q, confirmed: true }, key: hers, fromMarlene: true }
+    : { q, key: s.secrets[q.id] as Secret | undefined, fromMarlene: false };
+}
 export function leaderboard(s: Party): RankedPlayer[] {
   const rows = s.players
     .filter(isPlayer)
@@ -158,21 +187,24 @@ function award(
 function scoreRound(s: Party, now: number) {
   const q = s.questions[s.index];
   if (["pictionary", "drawing", "creative", "reveal"].includes(q.kind)) return;
+  const { q: marked, key } = marking(s, q);
   for (const sub of s.submissions[s.roundId] ?? []) {
     if (sub.moderated) continue;
-    const result = correct(q, s.secrets[q.id], sub.value);
+    // Her answer is the reference on these rounds: she isn't scored against herself.
+    if (keyFromMarlene(q) && isMarlene(s, sub.playerId)) continue;
+    const result = correct(marked, key, sub.value);
     if (result === null) continue;
     if (q.slider && typeof sub.value === "number") {
       const { delta, reason } = sliderScore(
         q.slider,
         q.unit,
-        s.secrets[q.id].number!,
+        key!.number!,
         sub.value,
       );
       award(s, sub.playerId, delta, now, reason, result, sub.elapsed);
     } else if (isMultiSelect(q.kind) && Array.isArray(sub.value)) {
       const { delta, reason } = optionScore(
-        s.secrets[q.id].answers!,
+        key!.answers!,
         sub.value as string[],
       );
       award(s, sub.playerId, delta, now, reason, result, sub.elapsed);
@@ -273,10 +305,21 @@ function start(s: Party, now: number) {
 }
 // Rounds the server can mark on its own: no vote, no host or Marlène judgment, and a known key.
 function autoScored(s: Party, q: Question) {
+  const { q: marked, key } = marking(s, q);
   return (
     !["drawing", "creative", "reveal", "pictionary"].includes(q.kind) &&
-    correct(q, s.secrets[q.id], q.kind === "number" ? 0 : "") !== null
+    correct(marked, key, q.kind === "number" ? 0 : "") !== null
   );
+}
+// Whether a closed round has what its reveal needs: a key the server can mark, or for a
+// "Marlène dévoile" round an answer to show (hers or the host's) before the host grades.
+function revealable(s: Party, q: Question) {
+  if (["creative", "pictionary"].includes(q.kind)) return true;
+  if (q.kind === "reveal") {
+    const { key } = marking(s, q);
+    return key?.text !== undefined || key?.number !== undefined;
+  }
+  return autoScored(s, q);
 }
 // Closing a round the server can mark goes straight to the answer and the points;
 // the others wait for the host (vote, validation, or a key still to confirm).
@@ -322,6 +365,7 @@ function publicQuestion(q: Question): Question {
     clipStart: q.clipStart,
     clipEnd: q.clipEnd,
     slider: q.slider,
+    keyFromMarlene: q.keyFromMarlene,
   };
 }
 export function view(
@@ -380,7 +424,11 @@ export function view(
     audio: s.audio,
     serverTime: now,
   };
-  if (q && revealed && actor) v.answer = s.secrets[q.id];
+  if (q && revealed && actor) {
+    const { key, fromMarlene } = marking(s, q);
+    v.answer = key;
+    if (fromMarlene) v.answerFromMarlene = true;
+  }
   if (revealed && actor?.playerId) {
     const result = s.events.filter(
       (e) =>
@@ -404,9 +452,11 @@ export function view(
     v.events = s.events.filter((event) => event.generation === s.generation);
     v.revealAllowed = s.revealAllowed;
   }
+  // Marlène plays like a guest: no answer keys, no question notes. She only gets what she
+  // needs to lead her rounds: the Pictionary word she draws (the drawing theme is public).
   if (actor?.role === "marlene") {
-    v.questions = s.questions;
-    v.secrets = s.secrets;
+    if (q?.kind === "pictionary" && s.secrets[q.id]?.text)
+      v.word = s.secrets[q.id].text;
     v.revealAllowed = s.revealAllowed;
     // The anonymous answers she judges, once the round is closed: never while it's open.
     if (q?.kind === "creative" && !OPEN.includes(s.phase))
@@ -453,18 +503,14 @@ export function reduce(
       "adjudicate",
       "grade",
       "vipPin",
+      "private",
     ].includes(cmd.action)
   )
     must(isAdmin, "Cette action est réservée à l’hôte.", 403);
   if (
-    [
-      "private",
-      "vote",
-      "starReveal",
-      "stroke",
-      "undoStroke",
-      "clearStrokes",
-    ].includes(cmd.action)
+    ["vote", "starReveal", "stroke", "undoStroke", "clearStrokes"].includes(
+      cmd.action,
+    )
   )
     must(privileged, "Cette action est réservée à Marlène ou à l’hôte.", 403);
   switch (cmd.action) {
@@ -650,14 +696,12 @@ export function reduce(
         s.phase = "voting_open";
         break;
       }
-      if (!["creative", "reveal", "pictionary"].includes(q.kind))
-        must(autoScored(s, q), "Confirme la bonne réponse avant de révéler.");
-      if (q.kind === "reveal")
-        must(
-          s.secrets[q.id]?.text !== undefined ||
-            s.secrets[q.id]?.number !== undefined,
-          "Marlène peut répondre ou l’hôte peut passer la manche.",
-        );
+      must(
+        revealable(s, q),
+        q.kind === "reveal"
+          ? "Marlène n’a pas répondu : saisis la réponse ou passe la manche."
+          : "Confirme la bonne réponse avant de révéler.",
+      );
       scoreRound(s, now);
       s.phase = "reveal";
       break;
@@ -868,7 +912,11 @@ export function reduce(
         "L’hôte doit autoriser la révélation.",
         403,
       );
-      must(q && s.secrets[q.id], "Ajoute d’abord ta réponse.");
+      // "Révéler ma réponse": her own in-game answer, on a round where it is the key.
+      must(
+        q && marking(s, q).fromMarlene && revealable(s, q),
+        "Ta réponse à cette manche est la bonne : réponds d’abord.",
+      );
       scoreRound(s, now);
       s.phase = "reveal";
       s.revealAllowed = false;
@@ -906,6 +954,10 @@ export function reduce(
         delete s.secrets[item.id];
       }
       if (patch.enabled !== undefined) item.enabled = !!patch.enabled;
+      if (patch.keyFromMarlene !== undefined) {
+        must(typeof patch.keyFromMarlene === "boolean", "Données invalides.");
+        item.keyFromMarlene = patch.keyFromMarlene;
+      }
       if (patch.kind) {
         must(
           [
@@ -1036,6 +1088,10 @@ export function reduce(
       );
       must(sub, "Participation introuvable.");
       must(typeof cmd.correct === "boolean", "Validation manquante.");
+      must(
+        !(keyFromMarlene(q) && isMarlene(s, sub.playerId)),
+        "La réponse de Marlène est la référence : elle n’est pas notée.",
+      );
       must(
         !s.events.some((e) => e.id === `${s.roundId}:${sub.playerId}`),
         "Cette réponse a déjà été notée.",

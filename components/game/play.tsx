@@ -17,7 +17,7 @@ import { Answer } from "./answer";
 import { DrawingCanvas } from "./canvas";
 import { SelfieStep } from "./selfie";
 import { MarleneSlideshow } from "./marlene-photos";
-import { OPEN, REVEALED } from "@/lib/game/types";
+import { OPEN, REVEALED, showsSelfieStep } from "@/lib/game/types";
 export function Play() {
   const c = useParty(),
     d = c.data;
@@ -25,14 +25,7 @@ export function Play() {
   // Set while a guest who already has a photo changes it from the lobby; a phase change
   // (the host opening a round) closes it.
   const [changingIn, setChangingIn] = useState<string | null>(null);
-  const me = d?.players.find((p) => p.id === d.playerId);
-  // A guest can't play without a selfie (the host, Marlène and the TV never need one),
-  // except during an open round: a late arrival answers first and takes it right after.
-  const showSelfie =
-    !!me &&
-    d!.role === "guest" &&
-    !OPEN.includes(d!.phase) &&
-    (!me.photo || changingIn === d!.phase);
+  const showSelfie = showsSelfieStep(d, changingIn);
   useEffect(() => {
     if (d?.initialized && d.role !== "guest") setHint(true);
   }, [d?.initialized, d?.role]);

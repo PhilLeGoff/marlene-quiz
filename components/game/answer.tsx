@@ -48,6 +48,15 @@ export function Answer({ data, c }: { data: View; c: PartyClient }) {
         <MarleneSlideshow />
       </>
     );
+  // On the rounds whose key is Marlène's own answer, everyone knows hers is the one that counts.
+  const reference = !!q.keyFromMarlene && data.role === "marlene";
+  const keyNote = q.keyFromMarlene ? (
+    <p className="notice key-note">
+      {reference
+        ? "Ta réponse sera la bonne réponse : les invités seront notés par rapport à elle. Pas de points pour toi sur cette manche."
+        : "C’est la réponse de Marlène qui fera foi."}
+    </p>
+  ) : null;
   const single = q.kind === "choice" || q.kind === "blind";
   const select = (v: string) =>
     setSelected((old) =>
@@ -59,6 +68,7 @@ export function Answer({ data, c }: { data: View; c: PartyClient }) {
   )
     return (
       <div>
+        {keyNote}
         {q.kind === "outfit" && <Outfit selected={selected} />}
         <div
           className={`answer-grid ${q.options.length > 6 ? "large" : q.options.length > 4 ? "six" : ""}`}
@@ -85,11 +95,13 @@ export function Answer({ data, c }: { data: View; c: PartyClient }) {
             </button>
           ))}
         </div>
-        <p className="answer-helper">
-          {single
-            ? "Une seule réponse. Fais confiance à ton instinct."
-            : "Coche tout ce qui colle : +1 par bonne réponse, −1 par mauvaise."}
-        </p>
+        {!reference && (
+          <p className="answer-helper">
+            {single
+              ? "Une seule réponse. Fais confiance à ton instinct."
+              : "Coche tout ce qui colle : +1 par bonne réponse, −1 par mauvaise."}
+          </p>
+        )}
         <button
           className="btn primary answer-submit"
           disabled={(!selected.length && q.kind !== "outfit") || c.busy}
@@ -159,6 +171,7 @@ export function Answer({ data, c }: { data: View; c: PartyClient }) {
         }}
         className="stack"
       >
+        {keyNote}
         <label className="slider-answer">
           Ton estimation
           <output aria-hidden="true">
@@ -183,10 +196,12 @@ export function Answer({ data, c }: { data: View; c: PartyClient }) {
             </span>
           </span>
         </label>
-        <p className="answer-helper">
-          Pile poil : +5 points. Chaque {step === 1 ? "" : `${step} `}
-          {q.unit} d’écart en retire un, et ça peut descendre sous zéro.
-        </p>
+        {!reference && (
+          <p className="answer-helper">
+            Pile poil : +5 points. Chaque {step === 1 ? "" : `${step} `}
+            {q.unit} d’écart en retire un, et ça peut descendre sous zéro.
+          </p>
+        )}
         <button className="btn primary" disabled={c.busy}>
           {c.busy ? "Envoi…" : "Envoyer ma réponse"} <Send size={18} />
         </button>
@@ -201,6 +216,7 @@ export function Answer({ data, c }: { data: View; c: PartyClient }) {
       }}
       className="stack"
     >
+      {keyNote}
       <label>
         {q.kind === "number"
           ? `Ton estimation (${q.unit})`

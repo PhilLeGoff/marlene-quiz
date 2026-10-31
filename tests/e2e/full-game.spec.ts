@@ -2,7 +2,7 @@
 // two guest phones (one at 390×844), Marlène's phone (she plays too), the projector
 // (/present) and the host's backstage (/admin). Each round checks what every screen shows, and that no answer
 // key reaches a guest or the TV before the reveal.
-import { test, expect, type Locator, type Page } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import {
   api,
   CLOSED_PHASES,
@@ -43,8 +43,11 @@ const ORDER = [
   "q16",
   "q17",
 ];
-// Answers Marlène types herself in her space during this test, so they start empty.
-const TYPED_BY_MARLENE = ["q5", "q9", "q14", "q16", "q17"];
+// Keys set during this test, so they start empty: Marlène's own in-game answers (height,
+// body count, the million) and the host's (screen time, the Pictionary word, the theme).
+const SET_DURING_TEST = ["q5", "q9", "q11", "q14", "q16", "q17"];
+// The rounds whose key is Marlène's answer: she isn't scored on them.
+const HER_ANSWER_IS_THE_KEY = ["q5", "q11", "q14"];
 const KEYS = {
   height: 168,
   screenTime: 240,
@@ -88,7 +91,7 @@ test("a whole party from the guest phones, Marlène’s space, the TV and the ho
       patch.clipStart = 0; // blindtest-clip.spec may have moved the section past 1 s
       patch.clipEnd = 1;
     }
-    if (TYPED_BY_MARLENE.includes(q.id)) patch.options = []; // clears the stored key
+    if (SET_DURING_TEST.includes(q.id)) patch.options = []; // clears the stored key
     await api(host, "admin", "edit", { questionId: q.id, patch });
   }
   d = await state(host);
@@ -96,6 +99,11 @@ test("a whole party from the guest phones, Marlène’s space, the TV and the ho
     d.questions.some((q: { id: string }) => q.id === id);
   const title = (id: string) =>
     d.questions.find((q: { id: string }) => q.id === id).title as string;
+  for (const id of HER_ANSWER_IS_THE_KEY.filter(has))
+    expect(
+      d.questions.find((q: { id: string }) => q.id === id).keyFromMarlene,
+      id,
+    ).toBe(true);
 
   // ── The TV, Marlène and two guests arrive ──────────────────────────────────────────
   const tvCtx = await browser.newContext({
@@ -110,7 +118,8 @@ test("a whole party from the guest phones, Marlène’s space, the TV and the ho
 
   const starCtx = await browser.newContext(PHONE_SIZE);
   const mp = await starCtx.newPage();
-  // She types her name on the home page like a guest and lands on her PIN pad.
+  // She types her name on the home page like a guest, lands on her PIN pad, then takes
+  // her selfie like a guest.
   await marleneSignIn(mp, "marlene");
   await expect(mp.getByText("Bienvenue dans ton royaume.")).toBeVisible();
   const MARLENE = "Marlène";
@@ -146,57 +155,46 @@ test("a whole party from the guest phones, Marlène’s space, the TV and the ho
   await tv.screenshot({ path: shots("tv-lobby") });
   await alice.screenshot({ path: shots("phone-lobby") });
 
-  // ── Marlène prepares her secrets ───────────────────────────────────────────────────
+  // ── The host sets the keys only the host knows; Marlène sets none ──────────────────
   const bodyCount = has("q11") ? "q11" : undefined;
-  async function keepSecret(
-    id: string,
-    fill: (form: Locator) => Promise<void>,
-    shown: string,
-  ) {
-    await mp.getByLabel("Choisir une manche").selectOption(id);
-    const form = mp.locator(".secret-form");
-    const edit = form.getByRole("button", { name: "Modifier la réponse" });
-    if (await edit.isVisible()) await edit.click();
-    await fill(form);
-    await form
-      .getByRole("button", { name: /Enregistrer en privé|Lancer ce thème/ })
-      .click();
-    await expect(form.getByText("Réponse déjà enregistrée")).toBeVisible();
-    await expect(form).toContainText(shown);
-  }
-  const value = (label: string | RegExp, text: string) => (form: Locator) =>
-    form.getByLabel(label, { exact: typeof label === "string" }).fill(text);
-  await keepSecret(
-    "q5",
-    value(/La bonne valeur/, String(KEYS.height)),
-    `${KEYS.height} cm`,
+  await api(host, "admin", "private", {
+    questionId: "q9",
+    number: KEYS.screenTime,
+  });
+  await hp.getByRole("tab", { name: "Les manches" }).click();
+  // The height's key is Marlène's answer: the editor says so, and the host can change it.
+  await hp.getByRole("button", { name: `Modifier ${title("q5")}` }).click();
+  await expect(hp.getByLabel(/La réponse de Marlène fait foi/)).toBeChecked();
+  await hp.screenshot({ path: shots("admin-editor-key-from-marlene") });
+  await hp.getByRole("tab", { name: "La bonne réponse" }).click();
+  await expect(hp.locator(".secret-form")).toContainText(
+    "ne sert qu’en secours",
   );
-  await keepSecret(
-    "q9",
-    value(/La bonne valeur/, String(KEYS.screenTime)),
-    String(KEYS.screenTime),
+  await hp.getByRole("button", { name: "Fermer", exact: true }).click();
+  // The Pictionary word Marlène will draw.
+  await hp.getByRole("button", { name: `Modifier ${title("q16")}` }).click();
+  await hp.getByRole("tab", { name: "La bonne réponse" }).click();
+  await hp
+    .getByLabel("Le mot ou la phrase que Marlène dessinera")
+    .fill(KEYS.word);
+  await hp.getByRole("button", { name: "Enregistrer en privé" }).click();
+  await expect(hp.locator(".secret-form")).toContainText(
+    "Réponse déjà enregistrée",
   );
-  if (bodyCount)
-    await keepSecret(
-      bodyCount,
-      value("Ta réponse", String(KEYS.bodyCount)),
-      String(KEYS.bodyCount),
-    );
-  await keepSecret("q14", value("Ta réponse", KEYS.dream), KEYS.dream);
-  await keepSecret(
-    "q16",
-    value("Ton mot ou ta phrase secrète", KEYS.word),
-    KEYS.word,
-  );
-  await mp.screenshot({ path: shots("marlene-secrets"), fullPage: true });
-  // None of it reaches a guest or the TV.
+  await hp.getByRole("button", { name: "Fermer", exact: true }).click();
+  await hp.getByRole("tab", { name: "La régie" }).click();
+  // Marlène has no secrets form, and no key reaches her, a guest or the TV.
+  await expect(mp.getByText("Tes petits secrets")).toHaveCount(0);
+  await expect(mp.locator(".secret-form")).toHaveCount(0);
+  await mp.screenshot({ path: shots("marlene-lobby"), fullPage: true });
   for (const view of [
     await state(aliceCtx.request, "guest"),
     await projectorState(tvCtx.request),
+    await state(starCtx.request, "marlene"),
   ]) {
     expect(view.secrets).toBeUndefined();
+    expect(view.questions).toBeUndefined();
     expect(view.answer).toBeUndefined();
-    expect(JSON.stringify(view)).not.toContain(KEYS.dream);
     expect(JSON.stringify(view)).not.toContain(KEYS.word);
   }
 
@@ -229,13 +227,19 @@ test("a whole party from the guest phones, Marlène’s space, the TV and the ho
     }
     await keysStayHidden(id);
   }
-  // While a round is open, guests and the TV get no key, no alias, nobody else's answer.
+  // While a round is open, guests, the TV and Marlène get no key, no alias, nobody else's
+  // answer. Marlène only gets the Pictionary word she draws.
   async function keysStayHidden(id: string) {
     const kind = d.questions.find((q: { id: string }) => q.id === id).kind;
+    const hers = await state(starCtx.request, "marlene");
+    expect(hers.questions).toBeUndefined();
+    if (kind === "pictionary") expect(hers.word).toBe(KEYS.word);
+    else expect(hers.word).toBeUndefined();
     for (const view of [
       await state(aliceCtx.request, "guest"),
       await state(bobCtx.request, "guest"),
       await projectorState(tvCtx.request),
+      ...(kind === "pictionary" ? [] : [hers]),
     ]) {
       expect(OPEN_PHASES).toContain(view.phase);
       expect(view.secrets).toBeUndefined();
@@ -350,7 +354,6 @@ test("a whole party from the guest phones, Marlène’s space, the TV and the ho
   );
   await tv.screenshot({ path: shots("tv-waiting-for-marlene") });
   expect(await phase()).toBe("question_open");
-  await expect(mp.locator(".secrets-panel")).not.toHaveAttribute("open");
   await option(mp, "Philippe").click(PHONE);
   await mp.screenshot({ path: shots("marlene-answering") });
   await mp.getByRole("button", { name: /Valider mon choix/ }).click();
@@ -424,40 +427,61 @@ test("a whole party from the guest phones, Marlène’s space, the TV and the ho
   await tv.screenshot({ path: shots("tv-leaderboard") });
   await next();
 
-  // ── Height slider: Marlène's private number; direction only ─────────────────────────
+  // ── Height: Marlène's own answer is the key; the guests are scored against it ────
   await open("q5");
-  const aliceSlider = alice.getByRole("slider", { name: /Ton estimation/ });
-  await expect(aliceSlider).toBeVisible(PHONE);
-  await aliceSlider.focus();
-  const centre = Number(await aliceSlider.inputValue());
-  for (let i = 0; i < Math.abs(centre - KEYS.height); i++)
-    await alice.keyboard.press(
-      centre > KEYS.height ? "ArrowLeft" : "ArrowRight",
-    );
-  await expect(aliceSlider).toHaveValue(String(KEYS.height));
+  await expect(
+    alice.getByText("C’est la réponse de Marlène qui fera foi."),
+  ).toBeVisible(PHONE);
+  async function slide(page: Page, to: number) {
+    const slider = page.getByRole("slider", { name: /Ton estimation/ });
+    await expect(slider).toBeVisible(PHONE);
+    await slider.focus();
+    const centre = Number(await slider.inputValue());
+    for (let i = 0; i < Math.abs(centre - to); i++)
+      await page.keyboard.press(centre > to ? "ArrowLeft" : "ArrowRight");
+    await expect(slider).toHaveValue(String(to));
+  }
+  await slide(alice, KEYS.height);
   await alice.getByRole("button", { name: /Envoyer ma réponse/ }).click();
   await firstAnswerShows(alice);
+  // Marlène answers with the same slider; her height becomes the key.
+  await expect(mp.getByText(/Ta réponse sera la bonne réponse/)).toBeVisible(
+    PHONE,
+  );
+  await slide(mp, KEYS.height);
+  await mp.screenshot({ path: shots("marlene-answering-height") });
+  await mp.getByRole("button", { name: /Envoyer ma réponse/ }).click();
+  await submitted(mp);
+  // Bob hasn't answered: still open, and her answer reaches neither the guests nor the TV.
+  expect(await phase()).toBe("question_open");
+  for (const view of [
+    await state(aliceCtx.request, "guest"),
+    await projectorState(tvCtx.request),
+  ]) {
+    expect(view.answer).toBeUndefined();
+    expect(view.secrets).toBeUndefined();
+  }
+  // It isn't stored as a key either: it's her answer to this round.
+  expect((await state(host)).secrets.q5).toBeUndefined();
   const bobSlider = bob.getByRole("slider", { name: /Ton estimation/ });
   await bobSlider.focus();
   await bob.keyboard.press("Home");
   await bob.getByRole("button", { name: /Envoyer ma réponse/ }).click();
-  await submitted(bob);
-  // Marlène guesses her own height like everyone, one centimetre short.
-  const starSlider = mp.getByRole("slider", { name: /Ton estimation/ });
-  await starSlider.focus();
-  const middle = Number(await starSlider.inputValue());
-  for (let i = 0; i < Math.abs(middle - (KEYS.height - 1)); i++)
-    await mp.keyboard.press(
-      middle > KEYS.height - 1 ? "ArrowLeft" : "ArrowRight",
-    );
-  await mp.getByRole("button", { name: /Envoyer ma réponse/ }).click();
+  // Bob's answer was the last one: the round reveals itself with her answer.
   await expect.poll(phase, PHONE).toBe("reveal");
   await revealed(`${KEYS.height} cm`);
-  await expect(result(alice)).toHaveClass(/positive/, PHONE);
+  for (const page of [alice, tv, mp])
+    await expect(page.locator(".reveal-answer").first()).toContainText(
+      "Réponse de Marlène",
+      PHONE,
+    );
+  await expect(result(alice).locator("strong")).toHaveText("+5 points", PHONE);
   await expect(result(bob)).toHaveClass(/negative/, PHONE);
-  await expect(result(mp).locator("strong")).toHaveText("+4 points", PHONE);
-  await expect(result(mp)).toContainText("1 cm d’écart");
-  await mp.screenshot({ path: shots("marlene-result") });
+  // She's the reference: no points for her on this one.
+  await expect(result(mp)).toHaveCount(0);
+  await expect(mp.getByText(/Ta réponse était la référence/)).toBeVisible();
+  await mp.screenshot({ path: shots("marlene-height-reveal") });
+  await tv.screenshot({ path: shots("tv-height-reveal") });
   await next();
 
   // ── Blind tests: the host plays the clip on the TV ─────────────────────────────────
@@ -545,6 +569,9 @@ test("a whole party from the guest phones, Marlène’s space, the TV and the ho
     await alice.getByRole("button", { name: /Envoyer ma réponse/ }).click();
     await firstAnswerShows(alice);
     const own = mp.locator(".star-current");
+    await expect(own.getByText(/Ta réponse sera la bonne réponse/)).toBeVisible(
+      PHONE,
+    );
     await own.getByLabel("Ta réponse").fill(String(KEYS.bodyCount));
     await mp.screenshot({ path: shots("marlene-answering-body-count") });
     await own.getByRole("button", { name: /Envoyer ma réponse/ }).click();
@@ -560,8 +587,12 @@ test("a whole party from the guest phones, Marlène’s space, the TV and the ho
     await expect(allow).toBeChecked();
     await mp.getByRole("button", { name: "Révéler ma réponse" }).click(PHONE);
     await revealed(String(KEYS.bodyCount));
+    await expect(tv.locator(".reveal-answer").first()).toContainText(
+      "Réponse de Marlène",
+    );
     // A "Marlène dévoile" round: no points until the host validates a guess.
     await expect(result(alice)).toHaveCount(0);
+    await expect(result(mp)).toHaveCount(0);
     await next();
   }
 
@@ -596,8 +627,27 @@ test("a whole party from the guest phones, Marlène’s space, the TV and the ho
   await bob.getByLabel("Ta réponse").fill("faire le tour du monde !");
   await bob.getByRole("button", { name: /Envoyer ma réponse/ }).click();
   await submitted(bob);
+  // The round waits for Marlène: her answer is the one the guesses are checked against.
+  expect(await phase()).toBe("question_open");
+  await mp.locator(".star-current").getByLabel("Ta réponse").fill(KEYS.dream);
+  await mp
+    .locator(".star-current")
+    .getByRole("button", { name: /Envoyer ma réponse/ })
+    .click();
+  await expect.poll(phase, PHONE).toBe("submissions_closed");
+  for (const view of [
+    await state(aliceCtx.request, "guest"),
+    await projectorState(tvCtx.request),
+  ])
+    expect(JSON.stringify(view)).not.toContain(KEYS.dream);
   await settle();
   await revealed(KEYS.dream);
+  // Her answer is the reference: the host grades the guests, not her.
+  const herRow = hp.locator(".submission-row", { hasText: "la référence" });
+  await expect(herRow).toContainText(KEYS.dream);
+  await expect(herRow.getByRole("button", { name: "Valider +1" })).toHaveCount(
+    0,
+  );
   await hp
     .locator(".submission-row", { hasText: bobName })
     .getByRole("button", { name: "Valider +1" })
@@ -678,23 +728,21 @@ test("a whole party from the guest phones, Marlène’s space, the TV and the ho
   await expect(result(alice).locator("strong")).toHaveText("+5 points", PHONE);
   await next();
 
-  // ── Drawing contest: Marlène sets the theme live, then votes anonymously ──────────
+  // ── Drawing contest: the host sets the theme live, Marlène votes anonymously ──────
   await open("q17", "waiting_for_marlene_answer");
   await expect(
     alice.getByRole("heading", { name: "Marlène prépare la surprise…" }),
   ).toBeVisible();
   await expect(tv.getByText("La reine prépare la surprise.")).toBeVisible();
   await expect(
-    mp.getByRole("heading", { name: "Tout le monde t’attend !" }),
+    mp.getByRole("heading", { name: "Ta manche se prépare." }),
   ).toBeVisible();
-  await mp.getByLabel("Choisir une manche").selectOption("q17");
-  await mp.getByLabel("Le thème du concours").fill(KEYS.theme);
-  await mp.getByRole("button", { name: /Lancer ce thème/ }).click();
-  // The round opens: her secrets fold away while the guests draw.
+  // The host picks the theme live, from the round's panel.
+  await hp.getByLabel("Le thème du concours").fill(KEYS.theme);
+  await hp.getByRole("button", { name: /Lancer ce thème/ }).click();
   await expect(
     mp.getByRole("heading", { name: "Les artistes sont au travail." }),
   ).toBeVisible(PHONE);
-  await expect(mp.locator(".secrets-panel")).not.toHaveAttribute("open");
   await expect(alice.getByText(`Le thème : ${KEYS.theme}`)).toBeVisible(PHONE);
   await expect(tv.getByRole("heading", { name: KEYS.theme })).toBeVisible(
     PHONE,

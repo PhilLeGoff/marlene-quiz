@@ -14,7 +14,7 @@ import {
   view,
 } from "../lib/game/engine";
 import type { Actor, Command, Party, Stroke } from "../lib/game/types";
-import { isMultiSelect } from "../lib/game/types";
+import { isMultiSelect, showsSelfieStep } from "../lib/game/types";
 const admin: Actor = { role: "admin" },
   star: Actor = { role: "marlene" },
   guest = (id = "alice"): Actor => ({ role: "guest", playerId: id });
@@ -41,12 +41,12 @@ const run = (
 function opened(id = "q3") {
   let p = party(id);
   if (id === "q3")
-    p = run(p, star, "private", {
+    p = run(p, admin, "private", {
       questionId: id,
       answers: ["Elle a fait pipi"],
     });
   if (id === "q16")
-    p = run(p, star, "private", {
+    p = run(p, admin, "private", {
       questionId: id,
       text: "Éléphant rose",
       aliases: ["Un éléphant rose"],
@@ -239,7 +239,7 @@ describe("scoring and normalization", () => {
     q.confirmed = false;
   });
   it("scores the height slider 5 for exact, one less per cm off, below zero", () => {
-    let p = run(party("q5"), star, "private", {
+    let p = run(party("q5"), admin, "private", {
       questionId: "q5",
       number: 168,
     });
@@ -263,7 +263,7 @@ describe("scoring and normalization", () => {
     expect(view(p, guest("bob"), 0).result?.reason).toBe("3 cm d’écart");
   });
   it("scores multi select per ticked option, +1 right and −1 wrong", () => {
-    let p = run(party(), star, "private", {
+    let p = run(party(), admin, "private", {
       questionId: "q3",
       answers: ["Elle a fait pipi", "Elle a sauté du balcon en culotte"],
     });
@@ -329,7 +329,7 @@ describe("scoring and normalization", () => {
   });
   it("leaves ambiguous answers for manual validation", () => {
     let p = opened("q14");
-    p = run(p, star, "private", { questionId: "q14", text: "Un voyage" });
+    p = run(p, admin, "private", { questionId: "q14", text: "Un voyage" });
     p = run(p, guest(), "submit", { value: "Voyager" });
     p = run(p, admin, "close");
     p = run(p, admin, "reveal");
@@ -371,7 +371,7 @@ describe("authorization and hidden answers", () => {
 
   it("erases the private key when its question is deleted", () => {
     let p = createParty("123456", { admin: "hash", marlene: "hash" }, 1000);
-    p = run(p, star, "private", { questionId: "q11", number: 42 });
+    p = run(p, admin, "private", { questionId: "q11", number: 42 });
     p = run(p, admin, "delete", { questionId: "q11" });
     expect(p.secrets.q11).toBeUndefined();
     expect(p.questions.some((q) => q.id === "q11")).toBe(false);
@@ -422,7 +422,16 @@ describe("authorization and hidden answers", () => {
   });
   it("requires explicit host permission for star-triggered reveal", () => {
     let p = opened("q14");
-    p = run(p, star, "private", { questionId: "q14", text: "Un voyage" });
+    p.players.push({
+      id: "star",
+      nickname: "Marlène",
+      avatar: 2,
+      active: true,
+      joinedAt: 1002,
+      role: "marlene",
+    });
+    // Her in-game answer is the key she reveals.
+    p = run(p, { ...star, playerId: "star" }, "submit", { value: "Un voyage" });
     p = run(p, admin, "close");
     expect(() => run(p, star, "starReveal")).toThrow("autoriser");
     p = run(p, admin, "allowReveal", { allowed: true });
@@ -451,12 +460,12 @@ describe("submissions, timers, drawing and winner races", () => {
     p = run(p, guest("bob"), "submit", { value: 172 });
     expect(p.phase).toBe("submissions_closed");
     expect(p.events).toHaveLength(0);
-    p = run(p, star, "private", { questionId: "q5", number: 168 });
+    p = run(p, admin, "private", { questionId: "q5", number: 168 });
     p = run(p, admin, "reveal");
     expect(p.events).toHaveLength(2);
     // Free-text guesses at Marlène's answer are validated by the host.
     p = opened("q14");
-    p = run(p, star, "private", { questionId: "q14", text: "Un voyage" });
+    p = run(p, admin, "private", { questionId: "q14", text: "Un voyage" });
     p = run(p, guest(), "submit", { value: "Voyager" });
     p = run(p, guest("bob"), "submit", { value: "Une maison" });
     expect(p.phase).toBe("submissions_closed");
@@ -489,7 +498,7 @@ describe("submissions, timers, drawing and winner races", () => {
   });
   it("keeps the drawing gallery anonymous and allows one final +5 vote", () => {
     let p = party("q17");
-    p = run(p, star, "private", {
+    p = run(p, admin, "private", {
       questionId: "q17",
       prompt: "Un chat en soirée",
     });
@@ -594,7 +603,7 @@ describe("Marlène plays like a guest", () => {
   }
   function openWith(id: string, key: Record<string, unknown>, active = true) {
     let p = withMarlene(id, active);
-    p = run(p, star, "private", { questionId: id, ...key });
+    p = run(p, admin, "private", { questionId: id, ...key });
     return run(p, admin, "open");
   }
   it("answers, gets scored and is ranked with the guests", () => {
@@ -681,6 +690,231 @@ describe("Marlène plays like a guest", () => {
     expect(p.phase).toBe("reveal");
   });
 });
+describe("Marlène's answer is the key", () => {
+  const me: Actor = { role: "marlene", playerId: "star" };
+  function withMarlene(id: string, active = true) {
+    const p = party(id);
+    p.players.push({
+      id: "star",
+      nickname: "Marlène",
+      avatar: 2,
+      active,
+      joinedAt: 1002,
+      role: "marlene",
+    });
+    return p;
+  }
+  const score = (p: Party, id: string) =>
+    leaderboard(p).find((x) => x.id === id)!.score;
+  it("seeds the flag on the height, the body count and the million", () => {
+    const flagged = seedQuestions
+      .filter((q) => q.keyFromMarlene)
+      .map((q) => q.id);
+    expect(flagged).toEqual(["q5", "q11", "q14"]);
+    // None of them comes with a key: the host's is only a fallback.
+    const p = createParty("123456", { admin: "x", marlene: "y" });
+    for (const id of flagged) expect(p.secrets[id]).toBeUndefined();
+  });
+  it("takes her height as the key, scores the guests by distance, not her", () => {
+    let p = run(withMarlene("q5"), admin, "open");
+    p = run(p, guest(), "submit", { value: 168 });
+    p = run(p, guest("bob"), "submit", { value: 171 });
+    // The round waits for her answer while she's signed in.
+    expect(p.phase).toBe("question_open");
+    // Her answer is stored with the round's answers, never shown to the others.
+    p = run(p, me, "submit", { value: 169 });
+    expect(p.phase).toBe("reveal");
+    expect(p.secrets.q5).toBeUndefined();
+    expect(score(p, "alice")).toBe(4);
+    expect(score(p, "bob")).toBe(3);
+    expect(view(p, guest("bob"), 1).result?.reason).toBe("2 cm d’écart");
+    // She's the reference: no score event for her on this round.
+    expect(p.events.some((e) => e.playerId === "star")).toBe(false);
+    expect(view(p, me, 1).result).toBeUndefined();
+    for (const v of [view(p, guest(), 1), view(p, me, 1)]) {
+      expect(v.answer).toEqual({ number: 169 });
+      expect(v.answerFromMarlene).toBe(true);
+    }
+  });
+  it("keeps her answer away from the guests and the TV until the reveal", () => {
+    let p = run(withMarlene("q14"), admin, "open");
+    p = run(p, me, "submit", { value: "Ouvrir un bar à Bali" });
+    for (const v of [view(p, guest(), 1), view(p, { role: "present" }, 1)]) {
+      expect(JSON.stringify(v)).not.toContain("Bali");
+      expect(v.answer).toBeUndefined();
+    }
+  });
+  it("prefers her answer to a key the host typed, which stays as the fallback", () => {
+    let p = withMarlene("q5");
+    p = run(p, admin, "private", { questionId: "q5", number: 160 });
+    p = run(p, admin, "open");
+    p = run(p, guest(), "submit", { value: 169 });
+    p = run(p, guest("bob"), "submit", { value: 160 });
+    expect(p.phase).toBe("question_open");
+    p = run(p, me, "submit", { value: 169 });
+    expect(score(p, "alice")).toBe(5);
+    expect(score(p, "bob")).toBe(-4);
+    expect(p.secrets.q5.number).toBe(160);
+  });
+  it("falls back on the host's key when she isn't signed in", () => {
+    let p = withMarlene("q5", false);
+    p = run(p, admin, "private", { questionId: "q5", number: 168 });
+    p = run(p, admin, "open");
+    p = run(p, guest(), "submit", { value: 168 });
+    p = run(p, guest("bob"), "submit", { value: 170 });
+    // She isn't playing: the guests' answers close it and the host's key marks it.
+    expect(p.phase).toBe("reveal");
+    expect(score(p, "alice")).toBe(5);
+    expect(view(p, guest(), 1).answerFromMarlene).toBeUndefined();
+  });
+  it("waits for the host when she never answers and there's no key", () => {
+    let p = run(withMarlene("q5"), admin, "open");
+    p = run(p, guest(), "submit", { value: 168 });
+    p = run(p, guest("bob"), "submit", { value: 170 });
+    expect(p.phase).toBe("question_open");
+    p = run(p, admin, "close");
+    expect(p.phase).toBe("submissions_closed");
+    expect(() => run(p, admin, "reveal")).toThrow("Confirme");
+    // The host types the key as a fallback, then reveals.
+    p = run(p, admin, "private", { questionId: "q5", number: 170 });
+    p = run(p, admin, "reveal");
+    expect(score(p, "alice")).toBe(3);
+    expect(score(p, "bob")).toBe(5);
+  });
+  it("shows her answer on a reveal round, and the host grades only the guests", () => {
+    let p = run(withMarlene("q14"), admin, "open");
+    p = run(p, guest(), "submit", { value: "Voyager" });
+    p = run(p, guest("bob"), "submit", { value: "Une maison" });
+    p = run(p, me, "submit", { value: "Faire le tour du monde" });
+    // A "Marlène dévoile" round: the host validates the guesses.
+    expect(p.phase).toBe("submissions_closed");
+    p = run(p, admin, "reveal");
+    expect(view(p, guest(), 1).answer).toEqual({
+      text: "Faire le tour du monde",
+    });
+    expect(view(p, guest(), 1).answerFromMarlene).toBe(true);
+    const subs = p.submissions[p.roundId];
+    const hers = subs.find((x) => x.playerId === "star")!;
+    expect(() =>
+      run(p, admin, "grade", { submissionId: hers.id, correct: true }),
+    ).toThrow("référence");
+    const alice = subs.find((x) => x.playerId === "alice")!;
+    p = run(p, admin, "grade", { submissionId: alice.id, correct: true });
+    expect(score(p, "alice")).toBe(1);
+    // Without her answer nor the host's, there's nothing to reveal.
+    let empty = run(withMarlene("q14"), admin, "open");
+    empty = run(empty, admin, "close");
+    expect(() => run(empty, admin, "reveal")).toThrow(
+      "Marlène n’a pas répondu",
+    );
+  });
+  it("gives her no key and no notes, only the Pictionary word she draws", () => {
+    let p = withMarlene("q16");
+    p = run(p, admin, "private", {
+      questionId: "q16",
+      text: "Éléphant rose",
+    });
+    p = run(p, admin, "open");
+    expect(p.phase).toBe("pictionary_live");
+    const v = view(p, me, 1);
+    expect(v).not.toHaveProperty("secrets");
+    expect(v).not.toHaveProperty("questions");
+    expect(v.word).toBe("Éléphant rose");
+    // Other rounds' keys never reach her.
+    expect(JSON.stringify(v)).not.toContain("Prof de plongée");
+    expect(view(p, guest(), 1).word).toBeUndefined();
+    // Nor during a normal round she answers.
+    let q3 = withMarlene("q3");
+    q3 = run(q3, admin, "open");
+    const mine = view(q3, me, 1);
+    expect(mine).not.toHaveProperty("secrets");
+    expect(mine.word).toBeUndefined();
+    expect(JSON.stringify(mine)).not.toContain('Elle a fait pipi"]');
+  });
+  it("lets only the host set answer keys", () => {
+    const p = withMarlene("q5");
+    expect(() =>
+      run(p, me, "private", { questionId: "q5", number: 168 }),
+    ).toThrow("réservée à l’hôte");
+    expect(
+      run(p, admin, "private", { questionId: "q5", number: 168 }).secrets.q5
+        .number,
+    ).toBe(168);
+  });
+  it("lets the host turn the flag on or off between rounds", () => {
+    let p = withMarlene("q3");
+    p = run(p, admin, "edit", {
+      questionId: "q3",
+      patch: { keyFromMarlene: true },
+    });
+    expect(p.questions[0].keyFromMarlene).toBe(true);
+    expect(() =>
+      run(p, admin, "edit", {
+        questionId: "q3",
+        patch: { keyFromMarlene: "yes" },
+      }),
+    ).toThrow("invalides");
+    // A multi-select round: her ticks become the key and she isn't scored.
+    p = run(p, admin, "open");
+    p = run(p, me, "submit", { value: ["Elle a fait pipi"] });
+    p = run(p, guest(), "submit", { value: ["Elle a fait pipi"] });
+    p = run(p, guest("bob"), "submit", { value: ["Elle a vomi sur le tapis"] });
+    expect(p.phase).toBe("reveal");
+    expect(score(p, "alice")).toBe(1);
+    expect(score(p, "bob")).toBe(-1);
+    expect(score(p, "star")).toBe(0);
+    // Ignored on the rounds she leads.
+    let q16 = withMarlene("q16");
+    q16 = run(q16, admin, "edit", {
+      questionId: "q16",
+      patch: { keyFromMarlene: true },
+    });
+    q16 = run(q16, admin, "private", { questionId: "q16", text: "Chat" });
+    q16 = run(q16, admin, "open");
+    expect(() => run(q16, me, "submit", { value: "Chat" })).toThrow("mènes");
+  });
+  it("flags stored parties once, keeping typed keys and the host's choice", () => {
+    const legacy = () => {
+      const p = createParty("123456", { admin: "x", marlene: "y" });
+      for (const q of p.questions) delete q.keyFromMarlene;
+      const height = p.questions.find((q) => q.id === "q5")!;
+      height.note =
+        "Marlène renseigne sa taille en privé. 5 points pile poil, un de moins par cm d’écart.";
+      p.questions.find((q) => q.id === "q16")!.note =
+        "Marlène choisit un mot secret et dessine. Première bonne réponse : +5.";
+      p.secrets.q5 = { number: 168 };
+      height.confirmed = true;
+      return p;
+    };
+    const flag = (x: Party, id: string) =>
+      x.questions.find((q) => q.id === id)!.keyFromMarlene;
+    const stored = legacy();
+    const upgraded = applySuppliedAnswers(stored);
+    for (const id of ["q5", "q11", "q14"])
+      expect(flag(upgraded, id)).toBe(true);
+    expect(flag(upgraded, "q4")).toBeUndefined();
+    expect(upgraded.secrets.q5).toEqual({ number: 168 });
+    expect(upgraded.questions.find((q) => q.id === "q5")!.note).toBe(
+      seedQuestions.find((q) => q.id === "q5")!.note,
+    );
+    expect(upgraded.questions.find((q) => q.id === "q16")!.note).toBe(
+      seedQuestions.find((q) => q.id === "q16")!.note,
+    );
+    expect(flag(stored, "q5")).toBeUndefined();
+    expect(applySuppliedAnswers(upgraded)).toBe(upgraded);
+    // The host turned it off: left alone.
+    const off = legacy();
+    off.questions.find((q) => q.id === "q14")!.keyFromMarlene = false;
+    expect(flag(applySuppliedAnswers(off), "q14")).toBe(false);
+    // Being played right now: left alone until the round is over.
+    const playing = legacy();
+    playing.index = playing.questions.findIndex((q) => q.id === "q5");
+    playing.phase = "question_open";
+    expect(flag(applySuppliedAnswers(playing), "q5")).toBeUndefined();
+    playing.phase = "next_round";
+    expect(flag(applySuppliedAnswers(playing), "q5")).toBe(true);
+  });
+});
 describe("selfies", () => {
   const first = "11111111-1111-4111-8111-111111111111",
     second = "22222222-2222-4222-8222-222222222222";
@@ -695,6 +929,44 @@ describe("selfies", () => {
     const removed = setPhoto(replaced.party, "alice", null);
     expect(removed.previous).toBe(second);
     expect(removed.party.players[0].photo).toBeUndefined();
+  });
+  it("asks Marlène for a selfie like a guest, never the host or the TV", () => {
+    let p = party();
+    p.players.push({
+      id: "star",
+      nickname: "Marlène",
+      avatar: 2,
+      active: true,
+      joinedAt: 1002,
+      role: "marlene",
+    });
+    const me: Actor = { role: "marlene", playerId: "star" };
+    expect(showsSelfieStep(view(p, me, 1))).toBe(true);
+    expect(showsSelfieStep(view(p, guest(), 1))).toBe(true);
+    expect(showsSelfieStep(view(p, admin, 1))).toBe(false);
+    expect(showsSelfieStep(view(p, { role: "present" }, 1))).toBe(false);
+    // Arriving during an open round, she answers first.
+    const open = run(
+      run(p, admin, "private", {
+        questionId: "q3",
+        answers: ["Elle a fait pipi"],
+      }),
+      admin,
+      "open",
+    );
+    expect(showsSelfieStep(view(open, me, 1))).toBe(false);
+    p = setPhoto(p, "star", first).party;
+    expect(showsSelfieStep(view(p, me, 1))).toBe(false);
+    // She chose to change it.
+    expect(showsSelfieStep(view(p, me, 1), "lobby")).toBe(true);
+    // Her selfie shows on the guests' phones and the TV.
+    for (const a of [guest(), { role: "present" } as Actor])
+      expect(view(p, a, 1).players.find((x) => x.id === "star")?.photo).toBe(
+        first,
+      );
+    // The host removes it: back to the step.
+    p = setPhoto(p, "star", null).party;
+    expect(showsSelfieStep(view(p, me, 1))).toBe(true);
   });
   it("rejects an unknown player", () =>
     expect(() => setPhoto(party(), "mallory", first)).toThrow("introuvable"));

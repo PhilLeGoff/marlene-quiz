@@ -4,6 +4,9 @@ import { Check, LockKeyhole, Save, SquarePen } from "lucide-react";
 import type { Question, Secret } from "@/lib/game/types";
 import type { PartyClient } from "./use-party";
 import { PIN_LENGTH } from "@/lib/game/vip";
+import { keyFromMarlene } from "@/lib/game/types";
+// The host's answer-key form. Marlène never sets keys: on the rounds whose key is her own
+// in-game answer, what the host types here only counts if she doesn't answer.
 export function PrivateForm({
   q,
   c,
@@ -32,6 +35,12 @@ export function PrivateForm({
         Marlène choisit sa préférée au moment du vote.
       </section>
     );
+  const fallback = keyFromMarlene(q) ? (
+    <p className="notice key-note">
+      La réponse que Marlène donne pendant la manche fait foi. Ce que tu saisis
+      ici ne sert qu’en secours, si elle ne répond pas.
+    </p>
+  ) : null;
   const prepared =
     (q.confirmed || saved) &&
     (secret?.number !== undefined ||
@@ -52,6 +61,7 @@ export function PrivateForm({
           />
           Réponse déjà enregistrée
         </h3>
+        {fallback}
         <p className="small-text muted">
           Rien à ressaisir : cette réponse sera utilisée automatiquement et
           restera mémorisée pour les prochaines parties.
@@ -108,8 +118,9 @@ export function PrivateForm({
           size={17}
           style={{ display: "inline", verticalAlign: "middle", marginRight: 8 }}
         />
-        {isDrawing ? "Ton thème de dessin" : "La réponse, en privé"}
+        {isDrawing ? "Le thème du dessin" : "La réponse, en privé"}
       </h3>
+      {fallback}
       <p className="small-text muted">
         {isDrawing
           ? "Le thème sera visible dès l’ouverture du défi."
@@ -174,10 +185,10 @@ export function PrivateForm({
         <>
           <label>
             {q.kind === "pictionary"
-              ? "Ton mot ou ta phrase secrète"
+              ? "Le mot ou la phrase que Marlène dessinera"
               : q.kind === "pin"
                 ? `Code fictif à ${PIN_LENGTH} chiffres`
-                : "Ta réponse"}
+                : "La réponse"}
             <input
               required
               type={q.kind === "pin" ? "password" : "text"}
