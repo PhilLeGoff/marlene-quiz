@@ -3172,6 +3172,7 @@ dialog.native-modal::backdrop {
 .presentation .match-names li {
   font-size: clamp(20px, 1.8vw, 30px);
   padding: 8px 26px;
+}
 /* Blind test: song search, picked song, and everyone's answers at the reveal. */
 .song-search {
   display: flex;
