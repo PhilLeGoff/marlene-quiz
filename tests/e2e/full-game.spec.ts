@@ -33,7 +33,7 @@ const ORDER = [
   "q6b",
   "q6c",
   "q7",
-  "q9",
+  "run5k",
   "q10",
   "q11",
   "q12",
@@ -44,10 +44,11 @@ const ORDER = [
   "q17",
 ];
 // Answers Marlène types herself in her space during this test, so they start empty.
-const TYPED_BY_MARLENE = ["q5", "q9", "q14", "q16", "q17"];
+const TYPED_BY_MARLENE = ["q5", "run5k", "q14", "q16", "q17"];
 const KEYS = {
   height: 168,
-  screenTime: 240,
+  run: "27:45", // 1665 s
+  runSeconds: 1665,
   bodyCount: 3,
   dream: "Faire le tour du monde",
   word: "Éléphant rose",
@@ -181,11 +182,7 @@ test("a whole party from the guest phones, Marlène’s space, the TV and the ho
     value(/La bonne valeur/, String(KEYS.height)),
     `${KEYS.height} cm`,
   );
-  await keepSecret(
-    "q9",
-    value(/La bonne valeur/, String(KEYS.screenTime)),
-    String(KEYS.screenTime),
-  );
+  await keepSecret("run5k", value(/Le bon temps/, KEYS.run), KEYS.run);
   if (intimate)
     await keepSecret(
       intimate.id,
@@ -473,16 +470,29 @@ test("a whole party from the guest phones, Marlène’s space, the TV and the ho
   await expect(result(bob).locator("strong")).toHaveText("-1 point", PHONE);
   await next();
 
-  // ── Screen time: Bob doesn't answer, so the host closes it ────────────────────────
-  await open("q9");
-  await alice.locator("input.number-answer").fill(String(KEYS.screenTime));
+  // ── Best 5 km time: a mm:ss slider in 15 s steps; Bob doesn't answer, the host closes ──
+  await open("run5k");
+  const runSlider = alice.getByRole("slider", { name: /Ton estimation/ });
+  await expect(runSlider).toBeVisible(PHONE);
+  await expect(alice.locator(".slider-bounds")).toContainText("15:00");
+  await expect(alice.locator(".slider-bounds")).toContainText("60:00");
+  await runSlider.focus();
+  const start = Number(await runSlider.inputValue());
+  for (let i = 0; i < Math.abs(start - KEYS.runSeconds) / 15; i++)
+    await alice.keyboard.press(
+      start > KEYS.runSeconds ? "ArrowLeft" : "ArrowRight",
+    );
+  await expect(runSlider).toHaveValue(String(KEYS.runSeconds));
+  await expect(alice.locator(".slider-answer output")).toHaveText(KEYS.run);
   await alice.getByRole("button", { name: /Envoyer ma réponse/ }).click();
   await firstAnswerShows(alice);
   expect((await state(host)).phase).toBe("question_open");
   await settle();
-  await revealed(String(KEYS.screenTime));
-  await expect(result(alice)).toHaveClass(/positive/, PHONE);
+  await revealed(KEYS.run);
+  await expect(result(alice).locator("strong")).toHaveText("+5 points", PHONE);
+  await expect(result(alice)).toContainText("Pile poil !");
   await expect(result(bob)).toHaveCount(0);
+  await expect(hp.locator(".submission-value").first()).toHaveText(KEYS.run);
   await next();
 
   // ── Dream job: the host adds 30 seconds ───────────────────────────────────────────

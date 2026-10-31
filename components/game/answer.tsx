@@ -8,6 +8,7 @@ import { Outfit } from "./shared";
 import { PinPad } from "./pin-pad";
 import { PIN_LENGTH } from "@/lib/game/vip";
 import { MarleneSlideshow } from "./marlene-photos";
+import { formatGap, formatNumber, formatTime, isTime } from "@/lib/game/time";
 export function Answer({ data, c }: { data: View; c: PartyClient }) {
   const q = data.question!;
   const [selected, setSelected] = useState<string[]>([]),
@@ -151,6 +152,16 @@ export function Answer({ data, c }: { data: View; c: PartyClient }) {
     const { min, max, step } = q.slider;
     const value =
       text === "" ? Math.round((min + max) / 2 / step) * step : Number(text);
+    const time = isTime(q);
+    const show = (n: number) =>
+      time ? (
+        formatTime(n)
+      ) : (
+        <>
+          {n} <small>{q.unit}</small>
+        </>
+      );
+    const per = q.slider.pointEvery ?? step;
     return (
       <form
         onSubmit={(e) => {
@@ -161,9 +172,7 @@ export function Answer({ data, c }: { data: View; c: PartyClient }) {
       >
         <label className="slider-answer">
           Ton estimation
-          <output aria-hidden="true">
-            {value} <small>{q.unit}</small>
-          </output>
+          <output aria-hidden="true">{show(value)}</output>
           <input
             type="range"
             min={min}
@@ -171,21 +180,22 @@ export function Answer({ data, c }: { data: View; c: PartyClient }) {
             step={step}
             value={value}
             aria-label="Ton estimation"
-            aria-valuetext={`${value} ${q.unit}`}
+            aria-valuetext={time ? formatGap(value) : `${value} ${q.unit}`}
             onChange={(e) => setText(e.target.value)}
           />
           <span className="slider-bounds" aria-hidden="true">
-            <span>
-              {min} {q.unit}
-            </span>
-            <span>
-              {max} {q.unit}
-            </span>
+            <span>{formatNumber(q, min)}</span>
+            <span>{formatNumber(q, max)}</span>
           </span>
         </label>
         <p className="answer-helper">
-          Pile poil : +5 points. Chaque {step === 1 ? "" : `${step} `}
-          {q.unit} d’écart en retire un, et ça peut descendre sous zéro.
+          Pile poil : +5 points.{" "}
+          {time
+            ? per === 60
+              ? "Chaque minute d’écart"
+              : `Chaque tranche de ${formatGap(per)} d’écart`
+            : `Chaque ${per === 1 ? "" : `${per} `}${q.unit} d’écart`}{" "}
+          en retire un, et ça peut descendre sous zéro.
         </p>
         <button className="btn primary" disabled={c.busy}>
           {c.busy ? "Envoi…" : "Envoyer ma réponse"} <Send size={18} />

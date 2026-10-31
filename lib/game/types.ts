@@ -55,7 +55,15 @@ export type Question = {
   clipStart: number;
   clipEnd: number;
   // A number round answered with a slider instead of typing, e.g. a height in cm.
-  slider?: { min: number; max: number; step: number };
+  // `format: "time"` stores seconds and shows mm:ss. `pointEvery` is how far off costs
+  // one point (every full 60 s for a time); without it, one point per step (per cm).
+  slider?: {
+    min: number;
+    max: number;
+    step: number;
+    format?: "time";
+    pointEvery?: number;
+  };
 };
 export type Secret = {
   answers?: string[];
