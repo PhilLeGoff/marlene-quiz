@@ -9,13 +9,14 @@ import {
   hostSignIn,
   joinWithSelfie,
   marleneSignIn,
+  MARLENE_PIN,
   OPEN_PHASES,
   PHONE,
   PHONE_SIZE,
   projectorState,
   resetParty,
   scribble,
-  signOut,
+  typePin,
   state,
   unique,
   upload,
@@ -721,23 +722,23 @@ test("a whole party from the guest phones, Marlène’s space, the TV and the ho
   await tv.screenshot({ path: shots("tv-podium") });
   await alice.screenshot({ path: shots("phone-podium"), fullPage: true });
 
-  // ── The host starts over: everyone is back in the lobby with zero points ──────────
+  // ── The host starts over: everyone is signed out and the lobby is empty ───────────
   await hp.getByRole("button", { name: "Recommencer" }).click();
   await expect(
     hp.getByRole("heading", { name: "On recommence à zéro ?" }),
   ).toBeVisible();
   await hp.getByRole("button", { name: "Oui, recommencer" }).click();
   await expect(hp.getByText("Tout le monde a son verre ?")).toBeVisible();
-  for (const page of phones) {
-    await expect(
-      page.getByRole("heading", { name: "Tu es sur la liste !" }),
-    ).toBeVisible(PHONE);
-    await expect(page.locator(".pill.butter")).toHaveText("0 points");
-  }
+  expect((await state(host)).players).toHaveLength(0);
+  for (const page of phones)
+    await expect(page.getByLabel("Ton petit nom")).toBeVisible(PHONE);
   await expect(tv.locator(".qr-wrap svg")).toBeVisible(PHONE);
+  // Marlène is back on her PIN pad and comes back in with it.
+  await expect(
+    mp.getByRole("group", { name: "Clavier numérique" }),
+  ).toBeVisible(PHONE);
+  await typePin(mp, MARLENE_PIN, "Entrer dans mon royaume");
   await expect(mp.getByText("Bienvenue dans ton royaume.")).toBeVisible(PHONE);
-
-  for (const page of phones) await signOut(page);
   for (const ctx of [hostCtx, tvCtx, starCtx, aliceCtx, bobCtx])
     await ctx.close();
 });
