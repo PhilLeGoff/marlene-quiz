@@ -2,6 +2,7 @@ import { env } from "party-runtime";
 import type { Party } from "./types";
 import { GameError, droppedSelfies } from "./engine";
 import { parseRange } from "./range";
+import { archiveGeneration } from "./archive";
 export function config(name: string): string {
   return String(
     (env as unknown as Record<string, unknown>)[name] ??
@@ -98,16 +99,27 @@ export async function mutate(fn: (p: Party) => Promise<Party> | Party) {
 }
 // `mutate` for changes that can remove players (a reset, the clean-up after a game): deletes
 // the selfie files they leave behind. Only after the commit, and only what the committed
-// attempt dropped, so a lost race never deletes a photo still in use.
+// attempt dropped, so a lost race never deletes a photo still in use. A change that wipes the
+// game (new generation) first saves its report and archives its selfies and drawings.
 export async function mutateDroppingSelfies(
   fn: (p: Party) => Promise<Party> | Party,
 ) {
   let dropped: string[] = [];
+  let wiped = null as Party | null;
   const result = await mutate(async (p) => {
     const next = await fn(p);
     dropped = droppedSelfies(p, next);
+    wiped = next.generation !== p.generation ? p : null;
     return next;
   });
+  if (wiped) {
+    const { archived, kept } = await archiveGeneration(wiped);
+    // Question media (songs, photos) is never deleted, even if a player pointed at it.
+    const questionMedia = wiped.questions.flatMap((q) => q.media).join(" ");
+    dropped = [...new Set([...dropped, ...archived])].filter(
+      (id) => !kept.includes(id) && !questionMedia.includes(id),
+    );
+  }
   // Best effort: a file that is already gone is fine, and a leftover is private.
   await Promise.all(dropped.map((id) => deleteMedia(id).catch(() => {})));
   return result;

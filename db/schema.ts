@@ -13,3 +13,12 @@ export const scoreEvents = sqliteTable("score_events", {
   id: text("id").primaryKey(),
   data: text("data").notNull(),
 });
+export const gameReports = sqliteTable("game_reports", {
+  id: text("id").primaryKey(),
+  generation: integer("generation").notNull(),
+  room: text("room").notNull(),
+  startedAt: integer("started_at").notNull(),
+  finishedAt: integer("finished_at").notNull(),
+  archived: integer("archived").notNull().default(0),
+  data: text("data").notNull(),
+});

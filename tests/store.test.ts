@@ -18,6 +18,7 @@ beforeEach(() => {
     "0000_talented_meggan.sql",
     "0001_misty_karen_page.sql",
     "0002_score_audit.sql",
+    "0003_game_reports.sql",
   ])
     db.exec(readFileSync(`drizzle/${file}`, "utf8"));
   env.DB = {
@@ -152,9 +153,27 @@ describe("selfie clean-up on reset", () => {
         cmd("submit", { value: "Éléphant rose" }),
       ),
     );
-    const deleted: string[] = [];
+    const deleted: string[] = [],
+      archived: string[] = [];
     let committed = false;
+    // Every file reads back as a tiny JPEG, so the reset can archive it first.
+    const file = () => ({
+      size: 1,
+      httpMetadata: { contentType: "image/jpeg" },
+      body: new Blob([new Uint8Array([0xff])]).stream(),
+    });
     env.BUCKET = {
+      async head(id: string) {
+        return id.startsWith("archive/") && !archived.includes(id)
+          ? null
+          : file();
+      },
+      async get() {
+        return file();
+      },
+      async put(id: string) {
+        archived.push(id);
+      },
       async delete(id: string) {
         // The party already points nowhere when the file goes.
         committed = (await readParty())!.party.players.length === 0;
@@ -167,6 +186,11 @@ describe("selfie clean-up on reset", () => {
     );
     expect(committed).toBe(true);
     expect(deleted.sort()).toEqual([
+      "11111111-1111-4111-8111-111111111111",
+      "22222222-2222-4222-8222-222222222222",
+    ]);
+    // Each selfie was copied into the game's report archive before going.
+    expect(archived.map((id) => id.split("/").pop()).sort()).toEqual([
       "11111111-1111-4111-8111-111111111111",
       "22222222-2222-4222-8222-222222222222",
     ]);

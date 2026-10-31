@@ -3326,3 +3326,21 @@ dialog.native-modal::backdrop {
 .presentation .song-verdict {
   font-size: 26px;
 }
+.archives-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.archives-table th,
+.archives-table td {
+  text-align: left;
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+.archives-table th {
+  font-size: 0.8rem;
+  color: var(--muted, #7a6a78);
+}
+.archives-table tr[aria-current] td {
+  background: rgba(248, 121, 121, 0.08);
+}
