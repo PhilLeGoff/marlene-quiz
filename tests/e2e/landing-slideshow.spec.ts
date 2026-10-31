@@ -1,6 +1,6 @@
 import { readdirSync } from "node:fs";
 import { test, expect, type Browser, type Page } from "@playwright/test";
-import { joinWithSelfie } from "./helpers";
+import { joinWithSelfie, signOutApi } from "./helpers";
 const PHONE = { width: 390, height: 844 },
   DESKTOP = { width: 1440, height: 900 };
 const unique = (name: string) => `${name} ${crypto.randomUUID().slice(0, 6)}`;
@@ -85,6 +85,8 @@ test("on a phone, the join form comes first and Marlène's polaroids follow it",
 
   // Joining still works.
   await joinWithSelfie(phone, unique("Fan de l’album"));
+  // Signed in, this guest would keep later specs' rounds from closing by themselves.
+  await signOutApi(phone.context().request);
 });
 test("on a desktop, the polaroids sit above the invitation and the next one drops in", async ({
   browser,
