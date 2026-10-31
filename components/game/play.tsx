@@ -15,23 +15,24 @@ import {
 import { CakeArt, EmptyParty } from "./art";
 import { Answer } from "./answer";
 import { DrawingCanvas } from "./canvas";
-import { SelfieStep, selfieSkipped } from "./selfie";
+import { SelfieStep } from "./selfie";
 import { MarleneSlideshow } from "./marlene-photos";
 import { OPEN, REVEALED } from "@/lib/game/types";
 export function Play() {
   const c = useParty(),
     d = c.data;
   const [hint, setHint] = useState(false);
-  // null until the guest opens or dismisses it: then it follows whether they have a photo.
-  const [selfie, setSelfie] = useState<boolean | null>(null);
+  // Set while a guest who already has a photo changes it from the lobby; a phase change
+  // (the host opening a round) closes it.
+  const [changingIn, setChangingIn] = useState<string | null>(null);
   const me = d?.players.find((p) => p.id === d.playerId);
+  // A guest can't play without a selfie (the host, Marlène and the TV never need one),
+  // except during an open round: a late arrival answers first and takes it right after.
   const showSelfie =
-    selfie ??
-    (!!me &&
-      !me.photo &&
-      // Don't make a late arrival miss an open question.
-      !OPEN.includes(d!.phase) &&
-      !selfieSkipped(me.id));
+    !!me &&
+    d!.role === "guest" &&
+    !OPEN.includes(d!.phase) &&
+    (!me.photo || changingIn === d!.phase);
   useEffect(() => {
     if (d?.initialized && d.role !== "guest") setHint(true);
   }, [d?.initialized, d?.role]);
@@ -51,7 +52,7 @@ export function Play() {
         </div>
       ) : showSelfie ? (
         <div className="guest-main">
-          <SelfieStep data={d} c={c} onDone={() => setSelfie(false)} />
+          <SelfieStep data={d} c={c} onDone={() => setChangingIn(null)} />
         </div>
       ) : (
         <div className="guest-main">
@@ -85,10 +86,10 @@ export function Play() {
                 <button
                   className="btn small"
                   style={{ marginTop: 22 }}
-                  onClick={() => setSelfie(true)}
+                  onClick={() => setChangingIn(d.phase)}
                 >
                   <Camera size={16} />
-                  {me?.photo ? "Changer ma photo" : "Ajouter mon selfie"}
+                  Changer ma photo
                 </button>
               </div>
               <MarleneSlideshow />

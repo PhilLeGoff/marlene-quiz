@@ -428,39 +428,6 @@ input[type="checkbox"] {
   text-align: center;
   font-weight: 800;
 }
-.avatar-picker {
-  display: flex;
-  gap: 10px;
-  margin: 15px 0 16px;
-}
-.avatar-picker button {
-  position: relative;
-  background: none;
-  border: 2px solid transparent;
-  border-radius: 15px;
-  padding: 2px;
-  min-width: 44px;
-  min-height: 44px;
-  display: grid;
-  place-items: center;
-  transition: background 0.15s;
-}
-.avatar-picker button.selected {
-  border-color: var(--ink);
-  background: #fff;
-}
-.avatar-picker button > span {
-  position: absolute;
-  bottom: -3px;
-  right: -3px;
-  background: var(--ink);
-  color: white;
-  border-radius: 50%;
-  width: 14px;
-  height: 14px;
-  display: grid;
-  place-items: center;
-}
 .btn {
   min-height: 48px;
   padding: 12px 20px;
@@ -1997,9 +1964,6 @@ input[type="checkbox"] {
   .join-fields {
     grid-template-columns: 1fr;
   }
-  .avatar-picker {
-    gap: 4px;
-  }
   .site-header nav {
     gap: 20px;
   }
@@ -2150,10 +2114,6 @@ input[type="checkbox"] {
   .join-fields input {
     font-size: 12px;
     padding: 11px 9px;
-  }
-  .avatar-picker {
-    gap: 9px;
-    justify-content: center;
   }
   .join-note {
     font-size: 9px;
@@ -2415,9 +2375,6 @@ input[type="checkbox"] {
   .join-fields {
     grid-template-columns: 1fr;
   }
-  .avatar-picker {
-    gap: 4px;
-  }
   .hero-tags > span {
     font-size: 9px;
   }
@@ -2487,9 +2444,6 @@ dialog.native-modal::backdrop {
     top: 76px;
     right: 0;
   }
-  .avatar-picker {
-    gap: 4px;
-  }
   .join-fields input {
     font-size: 16px;
   }
@@ -2512,9 +2466,6 @@ dialog.native-modal::backdrop {
   }
   .join-fields {
     grid-template-columns: 1fr;
-  }
-  .avatar-picker {
-    gap: 0;
   }
   .ticket-body {
     padding-inline: 16px;
@@ -2575,6 +2526,8 @@ dialog.native-modal::backdrop {
 }
 .join-fields.name-only {
   grid-template-columns: minmax(0, 1fr);
+  /* Breathing room between the name and the join button. */
+  margin-bottom: 18px;
 }
 /* Polaroids of Marlène while guests wait (components/game/marlene-photos.tsx). */
 .marlene-photos {

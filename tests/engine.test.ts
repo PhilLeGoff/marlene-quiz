@@ -480,6 +480,24 @@ describe("selfies", () => {
       first,
     );
   });
+  it("deals the drawn fallback avatar in join order, ignoring any client pick", () => {
+    let p = createParty("123456", { admin: "", marlene: "" }, 1000);
+    for (let i = 0; i < 10; i++)
+      p = run(p, guest(`g${i}`), "join", {
+        nickname: `Invité ${i}`,
+        avatar: i === 0 ? 7 : "<script>",
+      });
+    expect(p.players.map((x) => x.avatar)).toEqual([
+      0, 1, 2, 3, 4, 5, 6, 7, 0, 1,
+    ]);
+  });
+  it("keeps the same drawn avatar when a guest reconnects", () => {
+    let p = createParty("123456", { admin: "", marlene: "" }, 1000);
+    p = run(p, guest("a"), "join", { nickname: "A" });
+    p = run(p, guest("b"), "join", { nickname: "B" });
+    p = run(p, guest("b"), "join", { nickname: "B bis", avatar: 6 });
+    expect(p.players.find((x) => x.id === "b")?.avatar).toBe(1);
+  });
   it("can't be set through a game command", () =>
     expect(() => run(party(), guest(), "photo", { photo: first })).toThrow(
       "Action inconnue",

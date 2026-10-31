@@ -1,24 +1,11 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Camera, Check, RotateCcw, Trash2 } from "lucide-react";
+import { Camera, Check, RotateCcw } from "lucide-react";
 import type { View } from "@/lib/game/types";
 import type { PartyClient } from "./use-party";
 import { Avatar } from "./art";
 import { photoUrl } from "./shared";
 const SIZE = 512;
-const skipKey = (playerId: string) => `marlene-selfie-later:${playerId}`;
-export function selfieSkipped(playerId: string) {
-  try {
-    return localStorage.getItem(skipKey(playerId)) === "1";
-  } catch {
-    return false;
-  }
-}
-function rememberSkip(playerId: string) {
-  try {
-    localStorage.setItem(skipKey(playerId), "1");
-  } catch {}
-}
 // Centre-crops to a square and scales down, so a phone uploads ~60 Ko instead of a 4 Mo photo.
 async function squareJpeg(file: File): Promise<Blob> {
   const bitmap = await createImageBitmap(file);
@@ -47,6 +34,8 @@ async function squareJpeg(file: File): Promise<Blob> {
     ),
   );
 }
+// Every guest needs a selfie to play: with no photo yet there is no way back to the game,
+// only once one is saved can they come here to change it and leave again.
 export function SelfieStep({
   data,
   c,
@@ -77,15 +66,14 @@ export function SelfieStep({
       setError("Impossible de lire cette photo. Essaie avec une autre.");
     }
   }
-  async function send(method: "POST" | "DELETE") {
+  async function send() {
     setBusy(true);
     setError("");
     try {
       const r = await fetch("/api/avatar", {
-        method,
-        ...(method === "POST"
-          ? { headers: { "Content-Type": "image/jpeg" }, body: photo!.blob }
-          : {}),
+        method: "POST",
+        headers: { "Content-Type": "image/jpeg" },
+        body: photo!.blob,
       });
       if (!r.ok)
         throw new Error(
@@ -104,18 +92,18 @@ export function SelfieStep({
       setBusy(false);
     }
   }
-  function later() {
-    if (me && !me.photo) rememberSkip(me.id);
-    onDone();
-  }
   if (!me) return null;
+  const changing = !!me.photo;
   return (
     <div className="panel selfie-step">
-      <span className="pill butter">DERNIÈRE PETITE ÉTAPE</span>
-      <h1>Un selfie pour la postérité ?</h1>
+      <span className="pill butter">
+        {changing ? "NOUVELLE TÊTE ?" : "DERNIÈRE PETITE ÉTAPE"}
+      </span>
+      <h1>{changing ? "On refait la photo ?" : "Un selfie, et tu entres !"}</h1>
       <p className="muted">
-        Ta tête s’affiche à côté de ton nom, sur les téléphones et sur le grand
-        écran. C’est plus drôle quand on voit qui gagne.
+        {changing
+          ? "Ta tête s’affiche à côté de ton nom, sur les téléphones et sur le grand écran."
+          : "Pas de selfie, pas de fête : ta tête s’affiche à côté de ton nom, sur les téléphones et sur le grand écran. Pas de caméra ? Une photo de ta galerie fera l’affaire."}
       </p>
       <div className="selfie-frame">
         {photo ? (
@@ -148,10 +136,14 @@ export function SelfieStep({
               className="btn primary wide"
               disabled={busy}
               onClick={async () => {
-                if (await send("POST")) onDone();
+                if (await send()) onDone();
               }}
             >
-              {busy ? "On imprime ta photo…" : "C’est moi !"}{" "}
+              {busy
+                ? "On imprime ta photo…"
+                : error
+                  ? "Réessayer"
+                  : "C’est moi !"}{" "}
               <Check size={18} />
             </button>
             <button
@@ -168,23 +160,16 @@ export function SelfieStep({
             disabled={busy}
             onClick={() => input.current?.click()}
           >
-            {me.photo ? "Prendre un autre selfie" : "Prendre mon selfie"}{" "}
+            {changing ? "Prendre un autre selfie" : "Prendre mon selfie"}{" "}
             <Camera size={18} />
           </button>
         )}
-        {me.photo && !photo && (
-          <button
-            className="btn danger wide"
-            disabled={busy}
-            onClick={() => void send("DELETE")}
-          >
-            Retirer ma photo <Trash2 size={18} />
-          </button>
-        )}
       </div>
-      <button className="selfie-later" disabled={busy} onClick={later}>
-        {me.photo ? "Retour à la fête" : "Plus tard"}
-      </button>
+      {changing && (
+        <button className="selfie-later" disabled={busy} onClick={onDone}>
+          Retour à la fête
+        </button>
+      )}
     </div>
   );
 }

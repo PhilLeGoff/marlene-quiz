@@ -542,8 +542,8 @@ export function Admin() {
                   <div className="stack" style={{ marginTop: 30 }}>
                     <h2>Les selfies</h2>
                     <p className="small-text muted">
-                      Une photo de trop ? Retire-la : l’invité retrouve son
-                      avatar dessiné.
+                      Une photo de trop ? Retire-la : l’invité devra en
+                      reprendre une pour continuer.
                     </p>
                     {d.players
                       .filter((p) => p.photo)
