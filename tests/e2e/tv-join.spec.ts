@@ -52,11 +52,11 @@ async function expectJoinQr(page: Page) {
   expect(box.height).toBeGreaterThanOrEqual(viewport.height * 0.3);
   expect(Math.abs(box.width - box.height)).toBeLessThan(2);
   expect(box.y + box.height).toBeLessThanOrEqual(viewport.height);
-  // The address, for phones that won't scan.
-  await expect(page.locator(".join-url strong")).toHaveText(
-    new URL(origin).host,
-  );
-  await expect(page.locator(".join-url")).toBeInViewport({ ratio: 1 });
+  // Only the code: the screen never spells out the server's address or IP.
+  const main = page.locator("main");
+  await expect(main).not.toContainText(new URL(origin).host);
+  await expect(main).not.toContainText(/\b\d{1,3}(\.\d{1,3}){3}\b/);
+  await expect(page.locator(".tv-join-qr figcaption")).toHaveCount(0);
 }
 test("before the party exists, the TV already shows how to join", async ({
   browser,

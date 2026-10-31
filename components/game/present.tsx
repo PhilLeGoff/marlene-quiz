@@ -17,10 +17,7 @@ import { DrawingCanvas } from "./canvas";
 import { MarleneSlideshow, useMarlenePhotos } from "./marlene-photos";
 import { OPEN, REVEALED } from "@/lib/game/types";
 const noSubscribe = () => () => {};
-/**
- * What the TV shows before the game starts: a QR code big enough to scan from the sofa,
- * with the address spelled out for phones that won't scan.
- */
+/** What the TV shows before the game starts: a QR code big enough to scan from the sofa. */
 function TvJoin({
   origin,
   title,
@@ -32,7 +29,7 @@ function TvJoin({
 }) {
   return (
     <div className="projector-join">
-      <figure className="tv-join-qr">
+      <div className="tv-join-qr">
         <div className="qr-wrap">
           {/* The origin is only known in the browser: keep the space rather than show a wrong code. */}
           {origin && (
@@ -47,11 +44,7 @@ function TvJoin({
             />
           )}
         </div>
-        <figcaption className="join-url">
-          <span>ou va sur</span>
-          <strong>{origin && new URL(origin).host}</strong>
-        </figcaption>
-      </figure>
+      </div>
       <div className="tv-join-copy">
         <span className="pill butter">JOYEUX ANNIVERSAIRE MARLÈNE 🎂</span>
         <h1 className="question-title">{title}</h1>
