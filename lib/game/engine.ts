@@ -702,6 +702,11 @@ export function reduce(
         "Définis un code fictif pour le bonus.",
       );
       s.roundId = `${s.generation}-${cmd.id}`;
+      (s.rounds ??= []).push({
+        id: s.roundId,
+        questionId: opening.id,
+        openedAt: now,
+      });
       start(s, now);
       break;
     }
@@ -1384,6 +1389,7 @@ export function reduce(
       s.phase = "lobby";
       s.roundId = "";
       s.submissions = {};
+      s.rounds = [];
       s.strokes = [];
       s.deadline = 0;
       s.startedAt = 0;

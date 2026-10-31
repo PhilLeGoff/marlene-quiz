@@ -26,6 +26,7 @@ import {
   wipeFinished,
 } from "@/lib/game/engine";
 import { createParty, applySuppliedAnswers } from "@/lib/game/seed";
+import { reportFinished } from "@/lib/game/archive";
 import type { Actor, Command, Role } from "@/lib/game/types";
 import { MARLENE_NAME, isMarleneName } from "@/lib/game/vip";
 export const dynamic = "force-dynamic";
@@ -65,8 +66,15 @@ export async function GET(req: Request) {
     if (current && applySuppliedAnswers(current.party) !== current.party)
       current = await mutate((p) => applySuppliedAnswers(p));
     // An hour after the podium, a game nobody reset is wiped on the next request.
-    if (current && wipeFinished(current.party) !== current.party)
+    if (current && wipeFinished(current.party) !== current.party) {
       current = await mutateDroppingSelfies((p) => wipeFinished(p));
+      // A game stored finished without a finish time (before the clean-up existed) gets
+      // its report as its clock starts, not only when the wipe archives it.
+      if (current.party.phase === "finished")
+        await reportFinished(current.party).catch((e) =>
+          console.error("Game report failed", e),
+        );
+    }
     if (!current) return json({ initialized: false });
     let a = await actor(req, current.party, roleOf(req));
     const url = new URL(req.url);
@@ -218,6 +226,10 @@ export async function POST(req: Request) {
         };
         return next;
       });
+      if (result.party.phase === "finished")
+        await reportFinished(result.party).catch((e) =>
+          console.error("Game report failed", e),
+        );
       return json(enrich(view(result.party, joined, result.version)), 200, {
         "Set-Cookie": sessionCookie(req, role, t),
       });
@@ -291,6 +303,11 @@ export async function POST(req: Request) {
       }
       return next;
     });
+    // The podium's report, refreshed while it shows (a late adjustment, say).
+    if (result.party.phase === "finished")
+      await reportFinished(result.party).catch((e) =>
+        console.error("Game report failed", e),
+      );
     return json(enrich(view(result.party, authenticated, result.version)));
   } catch (e) {
     return fail(e);

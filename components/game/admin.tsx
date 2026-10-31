@@ -44,6 +44,7 @@ import { PrivateForm } from "./private-form";
 import { VipPinForm } from "./vip-pin-form";
 import { MARLENE_PIN } from "@/lib/game/vip";
 import { Modal } from "./modal";
+import { Archives } from "./archives";
 import { DrawingCanvas, DrawingPreview } from "./canvas";
 import type { Question, View } from "@/lib/game/types";
 import { kindLabels, OPEN, REVEALED } from "@/lib/game/types";
@@ -168,6 +169,7 @@ export function Admin() {
               ["questions", "Les manches"],
               ["players", "Les invités"],
               ["settings", "Réglages"],
+              ["archives", "Archives"],
             ].map(([id, label]) => (
               <button
                 key={id}
@@ -718,6 +720,7 @@ export function Admin() {
               </section>
             </div>
           )}
+          {tab === "archives" && <Archives />}
           {edit && (
             <QuestionEditor q={edit} c={c} onClose={() => setEdit(null)} />
           )}{" "}
@@ -793,7 +796,8 @@ export function Admin() {
                 Les points, le classement, les participations et les dessins
                 seront remis à zéro. Les invités et leurs selfies seront effacés
                 : chacun (Marlène comprise) devra se reconnecter. Les questions
-                et leurs bonnes réponses enregistrées seront conservées.
+                et leurs bonnes réponses enregistrées seront conservées. La
+                partie en cours reste consultable dans les Archives.
               </p>
               {c.error && (
                 <p className="error" role="alert">

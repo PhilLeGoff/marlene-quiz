@@ -147,6 +147,9 @@ export type Party = {
   secrets: Record<string, Secret>;
   players: Participant[];
   submissions: Record<string, Submission[]>;
+  // Rounds opened in this generation, in order, so the end-of-game report knows which
+  // question each round was. Missing on parties stored before it existed.
+  rounds?: { id: string; questionId: string; openedAt: number }[];
   strokes: Stroke[];
   winner?: string;
   events: ScoreEvent[];
