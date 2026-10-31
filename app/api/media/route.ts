@@ -28,7 +28,7 @@ export async function GET(req: Request) {
     const currentQ = p.questions[p.index];
     if (a?.role !== "admin" && !currentQ?.media.some((x) => x.includes(id)))
       throw new GameError("Média non disponible.", 403);
-    return await getMedia(id);
+    return await getMedia(id, req.headers.get("Range"));
   } catch (e) {
     return error(e);
   }

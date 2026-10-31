@@ -1155,6 +1155,16 @@ input[type="checkbox"] {
   margin: 17px 0 25px;
   line-height: 1.2;
 }
+/* Pull the title and its small note together; the note keeps the gap below. */
+.question-title:has(+ .question-hint) {
+  margin-bottom: 6px;
+}
+.question-hint {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--muted);
+  margin-bottom: 22px;
+}
 .answer-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1667,6 +1677,14 @@ input[type="checkbox"] {
   max-width: 1250px;
   margin: 30px auto;
   text-align: center;
+}
+.presentation .question-title:has(+ .question-hint) {
+  margin-bottom: 10px;
+}
+.presentation .question-hint {
+  font-size: clamp(20px, 1.8vw, 30px);
+  text-align: center;
+  margin-bottom: 30px;
 }
 .presentation .answer-grid {
   max-width: 1400px;
@@ -2846,4 +2864,133 @@ dialog.native-modal::backdrop {
     order: 1;
     margin-top: 22px;
   }
+}
+/* Blind test: choosing the section of the song in the question editor. */
+.clip-picker {
+  border: 1px solid var(--line);
+  background: #f6f0fb;
+  border-radius: 18px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.clip-picker h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+  margin: 0;
+}
+.clip-picker p {
+  margin: 0;
+}
+.clip-track {
+  position: relative;
+  height: 76px;
+  margin: 0 26px;
+  border-radius: 10px;
+  background: var(--paper);
+  border: 1.5px solid #c8bab4;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+}
+.clip-track[data-ready="false"] {
+  cursor: progress;
+  opacity: 0.6;
+}
+.clip-wave {
+  position: absolute;
+  top: 4px;
+  left: 0;
+  width: 100%;
+  height: calc(100% - 8px);
+}
+.clip-flat {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  border-top: 2px dashed #b9a7b5;
+}
+.clip-range {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: color-mix(in srgb, var(--coral) 30%, transparent);
+  border-block: 3px solid var(--coral);
+  pointer-events: none;
+}
+.clip-playhead {
+  position: absolute;
+  top: -6px;
+  bottom: -6px;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--ink);
+  pointer-events: none;
+}
+.clip-playhead::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -5px;
+  border: 6px solid transparent;
+  border-top-color: var(--ink);
+}
+/* The grab areas sit outside the section (start on its left, end on its right)
+   so the two handles never cover each other, even on a 5-second section. */
+.clip-handle {
+  position: absolute;
+  top: -8px;
+  bottom: -8px;
+  width: 26px;
+  display: flex;
+  align-items: stretch;
+  cursor: ew-resize;
+  touch-action: none;
+  outline: none;
+}
+.clip-handle.start {
+  transform: translateX(-100%);
+  justify-content: flex-end;
+}
+.clip-handle.end {
+  justify-content: flex-start;
+}
+.clip-handle span {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  font-size: 10px;
+  color: var(--ink);
+  background: var(--coral);
+  border: 1.5px solid var(--ink);
+  border-radius: 8px 0 0 8px;
+}
+.clip-handle.end span {
+  border-radius: 0 8px 8px 0;
+}
+.clip-handle:focus-visible span {
+  box-shadow:
+    0 0 0 3px var(--lilac),
+    0 0 0 5px var(--ink);
+}
+.clip-handle[aria-disabled="true"] {
+  display: none;
+}
+.clip-times {
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+}
+.clip-times b {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.clip-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }

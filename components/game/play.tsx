@@ -6,6 +6,7 @@ import {
   AppShell,
   AudioPlayer,
   GameMeta,
+  QuestionHint,
   Loading,
   PlayerBubbles,
   Ranking,
@@ -98,6 +99,7 @@ export function Play() {
             <div className="panel">
               <GameMeta data={d} />
               <h1 className="question-title">{d.question?.title}</h1>
+              <QuestionHint kind={d.question?.kind} />
               {d.phase === "next_round" ? (
                 <>
                   <EmptyParty

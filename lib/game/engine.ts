@@ -9,7 +9,8 @@ import type {
   Submission,
   View,
 } from "./types";
-import { OPEN, REVEALED } from "./types";
+import { OPEN, REVEALED, isMultiSelect } from "./types";
+import { CLIP_MAX } from "./clip";
 import { PIN_LENGTH, isMarleneName, isPin, nicknameKey } from "./vip";
 export class GameError extends Error {
   constructor(
@@ -157,7 +158,7 @@ function scoreRound(s: Party, now: number) {
         sub.value,
       );
       award(s, sub.playerId, delta, now, reason, result, sub.elapsed);
-    } else if (MULTI_SELECT.includes(q.kind) && Array.isArray(sub.value)) {
+    } else if (isMultiSelect(q.kind) && Array.isArray(sub.value)) {
       const { delta, reason } = optionScore(
         s.secrets[q.id].answers!,
         sub.value as string[],
@@ -192,7 +193,6 @@ export function sliderScore(
 }
 // Multi-select rounds score each ticked option: +1 if it is a right answer, −1 if not.
 // Leaving an option unticked costs nothing; `correct` still means the exact set, for tie-breaks.
-const MULTI_SELECT: Question["kind"][] = ["multi", "outfit", "photo"];
 export function optionScore(answers: string[], picked: string[]) {
   const right = picked.filter((v) => answers.includes(v)).length,
     wrong = picked.length - right;
@@ -1006,6 +1006,16 @@ export function reduce(
         item.duration >= 10 && item.attempts >= 1,
         "Minima : 10 secondes et 1 tentative.",
       );
+      if (patch.clipStart !== undefined || patch.clipEnd !== undefined) {
+        must(
+          item.clipEnd > item.clipStart,
+          "La fin de l’extrait doit venir après le début.",
+        );
+        must(
+          item.clipEnd - item.clipStart <= CLIP_MAX,
+          `L’extrait doit durer au plus ${CLIP_MAX} secondes.`,
+        );
+      }
       if (patch.media) {
         must(
           Array.isArray(patch.media) &&

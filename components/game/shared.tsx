@@ -13,7 +13,7 @@ import {
 import { Brand, Avatar, Confetti } from "./art";
 import type { PartyClient } from "./use-party";
 import type { Question, Role, Stroke, View } from "@/lib/game/types";
-import { kindLabels, REVEALED } from "@/lib/game/types";
+import { isMultiSelect, kindLabels, REVEALED } from "@/lib/game/types";
 import { DrawingCanvas, DrawingPreview } from "./canvas";
 export const phaseLabels: Record<string, string> = {
   lobby: "Les invités arrivent",
@@ -130,6 +130,12 @@ export function GameMeta({ data }: { data: View }) {
       <Timer data={data} />
     </div>
   );
+}
+// Small note under the question title, kept out of the heading so its name stays the question.
+export function QuestionHint({ kind }: { kind?: Question["kind"] }) {
+  return isMultiSelect(kind) ? (
+    <p className="question-hint">Plusieurs réponses possibles</p>
+  ) : null;
 }
 // `room` lets the projector, which has no session, load selfies like it loads drawings.
 export function photoUrl(data: View, player: { photo?: string }) {
@@ -416,21 +422,75 @@ export function AudioPlayer({
   const ref = useRef<HTMLAudioElement>(null);
   const [blocked, setBlocked] = useState(false);
   const q = data.question;
+  const clipStart = q?.clipStart ?? 0,
+    clipEnd = q?.clipEnd ?? 0;
+  // The <audio> element only exists for a blind test with its song.
+  const song = q?.kind === "blind" ? q.media[0] : undefined;
+  // The host's "Jouer" starts the section from clipStart on every screen; a screen
+  // that loads later joins in at the same point of the section.
   useEffect(() => {
     const audio = ref.current;
-    if (!audio || !q) return;
-    if (data.audio.playing) {
-      audio.currentTime = Math.max(
-        q.clipStart,
-        Math.min(
-          q.clipEnd,
-          data.audio.offset + (data.serverTime - data.audio.at) / 1000,
-        ),
+    if (!audio) return;
+    if (!data.audio.playing) {
+      audio.pause();
+      return;
+    }
+    const position =
+      data.audio.offset + (data.serverTime - data.audio.at) / 1000;
+    const go = () => {
+      if (position >= clipEnd) {
+        audio.pause();
+        audio.currentTime = clipStart;
+        return;
+      }
+      audio.currentTime = Math.max(clipStart, position);
+      void audio.play().then(
+        () => setBlocked(false),
+        () => setBlocked(true),
       );
-      void audio.play().catch(() => setBlocked(true));
-    } else audio.pause();
-  }, [data.audio.playing, data.audio.at, q?.id]);
-  if (!q?.media[0] || q.kind !== "blind") return null;
+    };
+    // Safari ignores a seek made before the song's metadata has loaded.
+    if (audio.readyState >= HTMLMediaElement.HAVE_METADATA) go();
+    else {
+      audio.addEventListener("loadedmetadata", go, { once: true });
+      return () => audio.removeEventListener("loadedmetadata", go);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- a new view of the same play command must not restart the song
+  }, [data.audio.playing, data.audio.at, song, clipStart, clipEnd]);
+  // Keep playback inside the section, even from the native controls: stop at
+  // clipEnd (checked every frame, timeupdate alone can overshoot by 250 ms) and
+  // rewind there, so pressing play again replays the section.
+  useEffect(() => {
+    const audio = ref.current;
+    if (!audio) return;
+    let frame = 0;
+    const check = () => {
+      if (audio.currentTime >= clipEnd) {
+        audio.pause();
+        audio.currentTime = clipStart;
+      } else if (audio.currentTime < clipStart - 0.5)
+        audio.currentTime = clipStart;
+    };
+    const tick = () => {
+      check();
+      if (!audio.paused) frame = requestAnimationFrame(tick);
+    };
+    const onPlay = () => {
+      if (audio.currentTime < clipStart - 0.5 || audio.currentTime >= clipEnd)
+        audio.currentTime = clipStart;
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(tick);
+    };
+    audio.addEventListener("play", onPlay);
+    audio.addEventListener("timeupdate", check);
+    if (!audio.paused) frame = requestAnimationFrame(tick);
+    return () => {
+      cancelAnimationFrame(frame);
+      audio.removeEventListener("play", onPlay);
+      audio.removeEventListener("timeupdate", check);
+    };
+  }, [song, clipStart, clipEnd]);
+  if (!q || !song) return null;
   const src = q.media[0] + (projector ? `&room=${data.room}` : "");
   return (
     <div className="audio-player">
@@ -443,10 +503,8 @@ export function AudioPlayer({
         src={src}
         controls
         preload="metadata"
-        onTimeUpdate={() => {
-          if (ref.current && ref.current.currentTime >= q.clipEnd)
-            ref.current.pause();
-        }}
+        data-clip-start={clipStart}
+        data-clip-end={clipEnd}
       />
       {blocked && (
         <p>Appuie sur lecture pour autoriser le son sur cet écran.</p>
