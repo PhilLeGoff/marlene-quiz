@@ -143,9 +143,8 @@ test("complete multiplayer game: all answer types, secrecy, real race, anonymous
       });
       values[q.id] = 168;
     } else if (q.kind === "blind") {
-      values[q.id] = q.options.length
-        ? d.secrets[q.id].answers
-        : d.secrets[q.id].text;
+      // Typed by hand, as when the song search can't find it.
+      values[q.id] = d.secrets[q.id].text;
     } else if (q.kind === "pin") {
       await api(host.request, "admin", "private", {
         questionId: q.id,

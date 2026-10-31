@@ -10,6 +10,7 @@ import { PIN_LENGTH } from "@/lib/game/vip";
 import { MarleneSlideshow } from "./marlene-photos";
 import { formatGap, formatNumber, formatTime, isTime } from "@/lib/game/time";
 import { MatchAnswer } from "./match";
+import { MySong, SongSearch } from "./song-search";
 export function Answer({ data, c }: { data: View; c: PartyClient }) {
   const q = data.question!;
   const [selected, setSelected] = useState<string[]>([]),
@@ -28,6 +29,7 @@ export function Answer({ data, c }: { data: View; c: PartyClient }) {
         <Check size={38} />
         <h2>C’est dans la boîte !</h2>
         <p>Ta réponse est bien au chaud. Place au suspense.</p>
+        {q.kind === "blind" && <MySong data={data} />}
         {q.kind === "drawing" && (
           <DrawingPreview
             url={
@@ -52,6 +54,7 @@ export function Answer({ data, c }: { data: View; c: PartyClient }) {
     );
   if (q.kind === "match")
     return <MatchAnswer q={q} busy={c.busy} onSubmit={(v) => void submit(v)} />;
+  if (q.kind === "blind") return <SongSearch c={c} />;
   // On the rounds whose key is Marlène's own answer, everyone knows hers is the one that counts.
   const reference = !!q.keyFromMarlene && data.role === "marlene";
   const keyNote = q.keyFromMarlene ? (
@@ -61,15 +64,12 @@ export function Answer({ data, c }: { data: View; c: PartyClient }) {
         : "C’est la réponse de Marlène qui fera foi."}
     </p>
   ) : null;
-  const single = q.kind === "choice" || q.kind === "blind";
+  const single = q.kind === "choice";
   const select = (v: string) =>
     setSelected((old) =>
       single ? [v] : old.includes(v) ? old.filter((x) => x !== v) : [...old, v],
     );
-  if (
-    ["choice", "multi", "outfit", "photo"].includes(q.kind) ||
-    (q.kind === "blind" && q.options.length > 0)
-  )
+  if (["choice", "multi", "outfit", "photo"].includes(q.kind))
     return (
       <div>
         {keyNote}

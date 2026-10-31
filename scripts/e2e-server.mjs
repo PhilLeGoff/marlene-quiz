@@ -16,7 +16,12 @@ mkdirSync(".sites-runtime", { recursive: true });
 const settings = JSON.parse(readFileSync(builtConfig, "utf8"));
 settings.main = new URL("../dist/server/index.js", import.meta.url).pathname;
 settings.assets.directory = new URL("../dist/client", import.meta.url).pathname;
-settings.vars = { ...settings.vars, ADMIN_PASSWORD: "admin-test-only" };
+settings.vars = {
+  ...settings.vars,
+  ADMIN_PASSWORD: "admin-test-only",
+  // The blind-test search answers from a built-in list instead of Deezer/iTunes.
+  SONG_SEARCH_FIXTURE: "1",
+};
 writeFileSync(config, JSON.stringify(settings));
 // This directory belongs only to Playwright; never touch the live preview state.
 rmSync(state, { recursive: true, force: true });
