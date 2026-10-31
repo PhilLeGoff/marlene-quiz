@@ -1689,14 +1689,37 @@ input[type="checkbox"] {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 50px;
-  padding: 40px;
+  gap: clamp(32px, 5vw, 90px);
+  padding: 10px 20px clamp(16px, 4vh, 48px);
+}
+/* Big enough to scan from a few metres away; the code draws its own white quiet zone. */
+.tv-join-qr {
+  --qr: clamp(200px, 36vh, 460px);
+  flex: none;
 }
 .qr-wrap {
+  width: var(--qr);
+  height: var(--qr);
   background: white;
-  padding: 18px;
-  border-radius: 20px;
-  border: 1px solid var(--line);
+  border-radius: 22px;
+  border: 1.5px solid var(--ink);
+  box-shadow: 0 6px 0 var(--ink);
+  overflow: hidden;
+}
+.qr-wrap svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.tv-join-copy {
+  max-width: 760px;
+}
+.presentation .tv-join-copy .question-title {
+  text-align: left;
+  margin: 22px 0 16px;
+}
+.tv-join-copy p {
+  font-size: clamp(18px, 2.4vh, 28px);
 }
 .projector-code {
   font-family: var(--heading);
@@ -2322,6 +2345,9 @@ input[type="checkbox"] {
     flex-direction: column;
     gap: 24px;
     padding: 20px;
+    text-align: center;
+  }
+  .presentation .tv-join-copy .question-title {
     text-align: center;
   }
   .projector-code {

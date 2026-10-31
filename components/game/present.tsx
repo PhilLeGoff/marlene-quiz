@@ -1,7 +1,7 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { ArrowRight, Maximize, Monitor, Users } from "lucide-react";
+import { Maximize, Users } from "lucide-react";
 import { useParty } from "./use-party";
 import { Brand, EmptyParty } from "./art";
 import {
@@ -13,15 +13,54 @@ import {
   PlayerBubbles,
   Ranking,
   Reveal,
-  Timer,
 } from "./shared";
 import { DrawingCanvas } from "./canvas";
 import { MarleneSlideshow, useMarlenePhotos } from "./marlene-photos";
 import { OPEN, REVEALED } from "@/lib/game/types";
+const noSubscribe = () => () => {};
+/** What the TV shows before the game starts: a QR code big enough to scan from the sofa. */
+function TvJoin({
+  origin,
+  title,
+  text,
+}: {
+  origin: string;
+  title: string;
+  text: string;
+}) {
+  return (
+    <div className="projector-join">
+      <div className="tv-join-qr">
+        <div className="qr-wrap">
+          {/* The origin is only known in the browser: keep the space rather than show a wrong code. */}
+          {origin && (
+            <QRCodeSVG
+              value={`${origin}/`}
+              size={512}
+              marginSize={4}
+              level="M"
+              bgColor="#ffffff"
+              fgColor="#392938"
+              title="Scanner pour rejoindre la fête"
+            />
+          )}
+        </div>
+      </div>
+      <div className="tv-join-copy">
+        <span className="pill butter">JOYEUX ANNIVERSAIRE MARLÈNE 🎂</span>
+        <h1 className="question-title">{title}</h1>
+        <p className="muted">{text}</p>
+      </div>
+    </div>
+  );
+}
 export function Present() {
-  const [origin, setOrigin] = useState("");
+  const origin = useSyncExternalStore(
+    noSubscribe,
+    () => location.origin,
+    () => "",
+  );
   const c = useParty("present"), d = c.data;
-  useEffect(() => { setOrigin(location.origin); }, []);
   const photos = useMarlenePhotos();
   const album =
     !!photos.length &&
@@ -61,34 +100,18 @@ export function Present() {
         {c.loading ? (
           <Loading />
         ) : !d?.role ? (
-          <EmptyParty
+          <TvJoin
+            origin={origin}
             title="La fête se prépare…"
-            text="La projection se connectera automatiquement dès que la fête sera ouverte."
+            text="Scanne, entre ton nom et rejoins la fête. Le grand écran s’allumera tout seul dès qu’elle sera ouverte."
           />
         ) : d.phase === "lobby" ? (
           <>
-            <div className="projector-join">
-              <div className="qr-wrap">
-                <QRCodeSVG
-                  value={`${origin}/`}
-                  size={220}
-                  bgColor="#ffffff"
-                  fgColor="#392938"
-                  title="Scanner pour rejoindre la fête"
-                />
-              </div>
-              <div>
-                <span className="pill butter">
-                  JOYEUX ANNIVERSAIRE MARLÈNE 🎂
-                </span>
-                <h1 className="question-title" style={{ textAlign: "left" }}>
-                  Qui connaît vraiment Marlène ?
-                </h1>
-                <p className="muted">
-                  Scanne, entre ton nom et rejoins la fête.
-                </p>
-              </div>
-            </div>
+            <TvJoin
+              origin={origin}
+              title="Qui connaît vraiment Marlène ?"
+              text="Scanne, entre ton nom et rejoins la fête."
+            />
             <PlayerBubbles data={d} />
           </>
         ) : d.phase === "finished" || d.phase === "leaderboard" ? (
