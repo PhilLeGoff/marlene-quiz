@@ -32,6 +32,7 @@ const ORDER = [
   "q6a",
   "q6b",
   "q6c",
+  "q18",
   "q7",
   "run5k",
   "q10",
@@ -507,6 +508,47 @@ test("a whole party from the guest phones, Marlène’s space, the TV and the ho
     await revealed(key);
     await expect(result(alice).locator("strong")).toHaveText("+1 point", PHONE);
     await expect(result(bob).locator("strong")).toHaveText("-1 point", PHONE);
+    await next();
+  }
+
+  // ── The exes round: a name per dog photo, +1 per right pair, nothing lost ──────────
+  if (has("q18")) {
+    const key = d.secrets.q18.answers as string[];
+    const chip = (page: Page, n: number, name: string) =>
+      page
+        .getByRole("group", { name: `Photo ${n}`, exact: true })
+        .getByRole("button", { name: new RegExp(`^${name}`) });
+    const validate = (page: Page) =>
+      page.getByRole("button", { name: "Valider mes associations" }).click();
+    await open("q18");
+    await expect(tv.locator(".match-board img")).toHaveCount(key.length);
+    await expect(tv.locator(".match-key")).toHaveCount(0);
+    for (const [i, name] of key.entries())
+      await chip(alice, i + 1, name).click();
+    await validate(alice);
+    await submitted(alice);
+    await chip(bob, 1, key[1]).click(); // the wrong name for photo 1
+    await validate(bob);
+    await submitted(bob);
+    // Marlène plays it like a guest and is scored; the pairs never reach her phone first.
+    expect(await phase()).toBe("question_open");
+    const hers = await state(starCtx.request, "marlene");
+    expect(hers.secrets).toBeUndefined();
+    expect(hers.answer).toBeUndefined();
+    await chip(mp, 1, key[0]).click();
+    await chip(mp, 2, key[1]).click();
+    await validate(mp);
+    await expect.poll(phase, PHONE).toBe("reveal");
+    await settle();
+    for (const page of [alice, bob, tv, hp])
+      await expect(page.locator(".match-key")).toHaveText(key, PHONE);
+    await expect(result(alice).locator("strong")).toHaveText(
+      `+${key.length} points`,
+      PHONE,
+    );
+    await expect(result(bob).locator("strong")).toHaveText("0 points", PHONE);
+    await expect(result(mp).locator("strong")).toHaveText("+2 points", PHONE);
+    await expect(mp.locator(".match-key")).toHaveText(key, PHONE);
     await next();
   }
 

@@ -171,11 +171,17 @@ export function QuestionEditor({
               </span>
             </label>
           )}
-          {["choice", "multi", "outfit", "photo"].includes(draft.kind) && (
+          {["choice", "multi", "outfit", "photo", "match"].includes(
+            draft.kind,
+          ) && (
             <label>
-              Réponses proposées{" "}
+              {draft.kind === "match"
+                ? "Prénoms à associer"
+                : "Réponses proposées"}{" "}
               <small>
-                Une par ligne. Les propositions générées restent modifiables.
+                {draft.kind === "match"
+                  ? "Un par ligne, dans l’ordre affiché aux invités. Corriger un prénom garde les associations ; les photos se règlent dans « La bonne réponse »."
+                  : "Une par ligne. Les propositions générées restent modifiables."}
               </small>
               <textarea
                 value={options}

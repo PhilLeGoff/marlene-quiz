@@ -2965,3 +2965,211 @@ dialog.native-modal::backdrop {
   flex-wrap: wrap;
   gap: 8px;
 }
+/* Matching round: name each photo. Phone cards put the photo beside its names. */
+.match-answer {
+  display: grid;
+  gap: 14px;
+}
+.match-card {
+  display: grid;
+  grid-template-columns: minmax(0, 42%) minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 10px;
+  border: 1.5px solid var(--line);
+  border-radius: 20px;
+  background: var(--paper);
+}
+.match-photo {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--coral-light);
+}
+.match-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.match-number {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  background: var(--ink);
+  color: white;
+  font-family: var(--heading);
+  font-size: 16px;
+}
+.match-chips {
+  display: grid;
+  gap: 7px;
+}
+.match-chip {
+  min-height: 40px;
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1.5px solid #9f8d93;
+  border-radius: 999px;
+  background: var(--cream);
+  font-weight: 800;
+  font-size: 15px;
+  text-align: left;
+  transition:
+    background 0.15s,
+    box-shadow 0.15s;
+}
+.match-chip small {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.match-chip.used {
+  border-style: dashed;
+  color: var(--muted);
+}
+.match-chip.selected {
+  background: var(--butter);
+  border: 2px solid var(--ink);
+  box-shadow: 0 3px 0 var(--ink);
+  color: var(--ink);
+}
+.match-helper {
+  margin-top: 14px;
+  font-size: 14px;
+  color: var(--muted);
+  text-align: center;
+}
+/* TV and reveal: the photos side by side. */
+.match-board {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 10px 0 20px;
+}
+.match-tile {
+  margin: 0;
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+.match-tile figcaption {
+  display: grid;
+  gap: 2px;
+  text-align: center;
+  animation: pop-in 0.35s ease-out;
+}
+.match-key {
+  font-family: var(--heading);
+  font-weight: 500;
+  font-size: 22px;
+  background: var(--butter);
+  border: 1.5px solid var(--ink);
+  border-radius: 12px;
+  padding: 2px 8px;
+  overflow-wrap: anywhere;
+}
+.match-count {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+}
+.match-mine {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 800;
+}
+.match-mine.right {
+  color: #2f7a4b;
+}
+.match-mine.wrong {
+  color: #b2444a;
+}
+.match-names {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 20px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+.match-names li {
+  padding: 6px 18px;
+  border: 1.5px solid var(--ink);
+  border-radius: 999px;
+  background: var(--paper);
+  font-weight: 800;
+}
+.match-key-fields {
+  display: grid;
+  gap: 10px;
+}
+.match-key-row {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+.match-key-row .match-number {
+  top: 4px;
+  left: 4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  font-size: 12px;
+}
+.match-key-row > span {
+  display: grid;
+  gap: 4px;
+  font-weight: 700;
+}
+@media (min-width: 700px) {
+  .match-board {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+.presentation .match-board {
+  max-width: 1400px;
+  margin: 10px auto 24px;
+  gap: 24px;
+}
+.presentation .match-photo {
+  aspect-ratio: auto;
+  height: min(40vh, 460px);
+  border-radius: 22px;
+}
+.presentation .match-board.reveal .match-photo {
+  height: min(36vh, 420px);
+}
+.presentation .match-number {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  font-size: 30px;
+  top: 14px;
+  left: 14px;
+}
+.presentation .match-key {
+  font-size: clamp(26px, 2.4vw, 42px);
+}
+.presentation .match-count {
+  font-size: clamp(16px, 1.3vw, 22px);
+}
+.presentation .match-names li {
+  font-size: clamp(20px, 1.8vw, 30px);
+  padding: 8px 26px;
+}
