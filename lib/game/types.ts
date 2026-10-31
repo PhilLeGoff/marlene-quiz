@@ -9,6 +9,7 @@ export type Kind =
   | "outfit"
   | "pin"
   | "photo"
+  | "match"
   | "creative"
   | "pictionary"
   | "drawing";
@@ -56,6 +57,9 @@ export type Question = {
   clipEnd: number;
   // A number round answered with a slider instead of typing, e.g. a height in cm.
   slider?: { min: number; max: number; step: number };
+  // A "match" round: the IDs of the photos to name (files in assets/exes/, by basename).
+  // The options are the names; the key's `answers[i]` names `photos[i]`.
+  photos?: string[];
 };
 export type Secret = {
   answers?: string[];
@@ -169,6 +173,8 @@ export type View = {
   winner?: string;
   result?: { delta: number; correct: boolean; reason: string };
   answer?: Secret;
+  // A revealed "match" round: how many guests named each photo right, in `photos` order.
+  matchRight?: number[];
   questions?: Question[];
   secrets?: Record<string, Secret>;
   submissions?: Submission[];
@@ -207,6 +213,7 @@ export const kindLabels: Record<Kind, string> = {
   outfit: "Le pyjama parfait",
   pin: "Code mystère",
   photo: "Qui est qui ?",
+  match: "Qui va avec qui ?",
   creative: "Carte blanche",
   pictionary: "Pictionary",
   drawing: "Concours de dessin",

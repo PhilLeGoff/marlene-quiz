@@ -15,6 +15,7 @@ import type { PartyClient } from "./use-party";
 import type { Question, Role, Stroke, View } from "@/lib/game/types";
 import { isMultiSelect, kindLabels, REVEALED } from "@/lib/game/types";
 import { DrawingCanvas, DrawingPreview } from "./canvas";
+import { MatchReveal } from "./match";
 export const phaseLabels: Record<string, string> = {
   lobby: "Les invités arrivent",
   question_open: "À vous de jouer",
@@ -135,6 +136,10 @@ export function GameMeta({ data }: { data: View }) {
 export function QuestionHint({ kind }: { kind?: Question["kind"] }) {
   return isMultiSelect(kind) ? (
     <p className="question-hint">Plusieurs réponses possibles</p>
+  ) : kind === "match" ? (
+    <p className="question-hint">
+      +1 par bonne association, 0 si c’est faux ou vide
+    </p>
   ) : null;
 }
 // `room` lets the projector, which has no session, load selfies like it loads drawings.
@@ -246,7 +251,9 @@ export function Reveal({ data }: { data: View }) {
           </div>
         </div>
       )}
+      {q?.kind === "match" && answer?.answers && <MatchReveal data={data} />}
       {answer &&
+        q?.kind !== "match" &&
         (answer.text || answer.number !== undefined || answer.answers) && (
           <div className="reveal-answer">
             <p>ROULEMENT DE TAMBOUR…</p>
