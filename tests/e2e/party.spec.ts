@@ -118,6 +118,7 @@ test("complete multiplayer game: all answer types, secrecy, real race, anonymous
     const patch: Record<string, unknown> = { enabled: true, duration: 120 };
     if (q.kind === "blind") {
       patch.media = [audio];
+      patch.clipStart = 0; // blindtest-clip.spec may have moved the section past 1 s
       patch.clipEnd = 1;
     }
     if (q.kind === "photo") {

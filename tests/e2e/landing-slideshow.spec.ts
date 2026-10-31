@@ -1,5 +1,6 @@
 import { readdirSync } from "node:fs";
 import { test, expect, type Browser, type Page } from "@playwright/test";
+import { joinWithSelfie } from "./helpers";
 const PHONE = { width: 390, height: 844 },
   DESKTOP = { width: 1440, height: 900 };
 const unique = (name: string) => `${name} ${crypto.randomUUID().slice(0, 6)}`;
@@ -68,30 +69,6 @@ async function formFirst(page: Page) {
     ),
   ).toBe(true);
 }
-// The selfie step follows the name; a generated JPEG stands in for the camera.
-async function takeSelfie(page: Page) {
-  const jpeg = await page.evaluate(async () => {
-    const canvas = document.createElement("canvas");
-    canvas.width = canvas.height = 320;
-    const g = canvas.getContext("2d")!;
-    g.fillStyle = "#c9e6d5";
-    g.fillRect(0, 0, 320, 320);
-    const blob = await new Promise<Blob>((resolve) =>
-      canvas.toBlob((b) => resolve(b!), "image/jpeg", 0.9),
-    );
-    let binary = "";
-    for (const byte of new Uint8Array(await blob.arrayBuffer()))
-      binary += String.fromCharCode(byte);
-    return btoa(binary);
-  });
-  await page.locator('input[type="file"]').setInputFiles({
-    name: "selfie.jpg",
-    mimeType: "image/jpeg",
-    buffer: Buffer.from(jpeg, "base64"),
-  });
-  await page.getByRole("button", { name: /C’est moi/ }).click();
-  await expect(page.getByText("Tu es sur la liste !")).toBeVisible();
-}
 test("on a phone, the join form comes first and Marlène's polaroids follow it", async ({
   browser,
 }) => {
@@ -107,10 +84,7 @@ test("on a phone, the join form comes first and Marlène's polaroids follow it",
   await phone.screenshot({ path: test.info().outputPath("landing-phone.png") });
 
   // Joining still works.
-  await phone.getByLabel("Ton petit nom").fill(unique("Fan de l’album"));
-  await phone.getByRole("button", { name: /Rejoindre la fête/ }).click();
-  await expect(phone).toHaveURL(/\/play$/);
-  await takeSelfie(phone);
+  await joinWithSelfie(phone, unique("Fan de l’album"));
 });
 test("on a desktop, the polaroids sit above the invitation and the next one drops in", async ({
   browser,
