@@ -11,6 +11,7 @@ import {
   marleneSignIn,
   OPEN_PHASES,
   PHONE,
+  pickSong,
   PHONE_SIZE,
   projectorState,
   resetParty,
@@ -431,12 +432,16 @@ test("a whole party from the guest phones, Marlène’s space, the TV and the ho
   await next();
 
   // ── Blind tests: the host plays the clip on the TV ─────────────────────────────────
+  // Guests find the song in the search box; nobody sees multiple-choice options.
   for (const id of ["q6a", "q6b", "q6c"].filter(has)) {
-    const key = d.secrets[id].answers[0] as string;
-    const wrong = d.questions
-      .find((q: { id: string }) => q.id === id)
-      .options.find((o: string) => o !== key) as string;
+    const secret = d.secrets[id];
+    const key = (
+      secret.artist ? `${secret.artist} — ${secret.text}` : secret.answers[0]
+    ) as string;
     await open(id);
+    await expect(tv.locator(".answer-option")).toHaveCount(0);
+    await expect(alice.locator(".answer-option")).toHaveCount(0);
+    expect((await projectorState(tvCtx.request)).question.options).toEqual([]);
     await hp.getByRole("button", { name: "Jouer / rejouer l’extrait" }).click();
     await expect(tv.locator(".audio-player")).toContainText(
       "Ouvre grand les oreilles.",
@@ -447,12 +452,13 @@ test("a whole party from the guest phones, Marlène’s space, the TV and the ho
       /\/api\/media\?id=/,
     );
     expect((await projectorState(tvCtx.request)).audio.playing).toBe(true);
-    await pick(alice, [key]);
+    await pickSong(alice, key.replace(" — ", " "));
     await submitted(alice);
-    await pick(bob, [wrong]);
+    await pickSong(bob, "Cendrillon");
     await submitted(bob);
     await settle();
     await revealed(key);
+    await expect(tv.locator(".song-picks li")).toHaveCount(2, PHONE);
     await expect(result(alice).locator("strong")).toHaveText("+1 point", PHONE);
     await expect(result(bob).locator("strong")).toHaveText("-1 point", PHONE);
     await next();

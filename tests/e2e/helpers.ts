@@ -236,6 +236,28 @@ export const png = Buffer.from(
   "base64",
 );
 
+// ── Blind test: the song search box (the e2e server answers from a fixed list) ──
+export const songBox = (page: Page) =>
+  page.getByRole("combobox", { name: "Quelle est cette chanson ?" });
+// Types in the search box, picks the first suggestion whose text matches `pick` (or the
+// first one) and sends it.
+export async function pickSong(page: Page, query: string, pick?: RegExp) {
+  await songBox(page).fill(query);
+  const options = page.getByRole("option");
+  const choice = pick
+    ? options.filter({ hasText: pick }).first()
+    : options.first();
+  await choice.click(PHONE);
+  await page.getByRole("button", { name: "Valider cette chanson" }).click();
+}
+// Sends what was typed, for a song the search doesn't know.
+export async function sendTypedSong(page: Page, text: string) {
+  await songBox(page).fill(text);
+  await page
+    .getByRole("button", { name: `Envoyer « ${text} » tel quel` })
+    .click(PHONE);
+}
+
 // Draws one diagonal stroke on an editable canvas with the mouse (pointer events).
 export async function scribble(page: Page) {
   const surface = page.locator(".drawing-surface:not(.readonly) svg");

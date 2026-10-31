@@ -4,6 +4,17 @@ import { Check, LockKeyhole, Save, SquarePen } from "lucide-react";
 import type { Question, Secret } from "@/lib/game/types";
 import type { PartyClient } from "./use-party";
 import { PIN_LENGTH } from "@/lib/game/vip";
+import { songLabel, splitAnswer } from "@/lib/game/song";
+// A blind-test key saved before the artist had its own field kept it in "Artist — Title".
+const artistOf = (secret?: Secret) =>
+  secret?.artist ??
+  (secret?.answers?.[0] ? splitAnswer(secret.answers[0]).artist : "") ??
+  "";
+const titleOf = (q: Question, secret?: Secret) =>
+  secret?.text ??
+  (q.kind === "blind" && secret?.answers?.[0]
+    ? splitAnswer(secret.answers[0]).title
+    : "");
 export function PrivateForm({
   q,
   c,
@@ -14,15 +25,15 @@ export function PrivateForm({
   secret?: Secret;
 }) {
   const [editing, setEditing] = useState(false);
-  const [text, setText] = useState(secret?.text ?? ""),
+  const isBlind = q.kind === "blind";
+  const [text, setText] = useState(titleOf(q, secret)),
+    [artist, setArtist] = useState(artistOf(secret)),
     [num, setNum] = useState(secret?.number?.toString() ?? ""),
     [prompt, setPrompt] = useState(secret?.prompt ?? ""),
     [aliases, setAliases] = useState(secret?.aliases?.join("\n") ?? ""),
     [answers, setAnswers] = useState(secret?.answers ?? []),
     [saved, setSaved] = useState(false);
-  const options =
-    ["choice", "multi", "outfit", "photo"].includes(q.kind) ||
-    (q.kind === "blind" && q.options.length > 0);
+  const options = ["choice", "multi", "outfit", "photo"].includes(q.kind);
   const isDrawing = q.kind === "drawing";
   const isNum = q.kind === "number" || q.sensitive;
   if (q.kind === "creative")
@@ -58,7 +69,8 @@ export function PrivateForm({
         </p>
         <p>
           <strong>
-            {secret?.answers?.join(" + ") ??
+            {(isBlind ? songLabel(secret) : undefined) ??
+              secret?.answers?.join(" + ") ??
               secret?.text ??
               (secret?.number !== undefined
                 ? `${secret.number} ${q.unit}`
@@ -69,7 +81,8 @@ export function PrivateForm({
           type="button"
           className="btn small"
           onClick={() => {
-            setText(secret?.text ?? "");
+            setText(titleOf(q, secret));
+            setArtist(artistOf(secret));
             setNum(secret?.number?.toString() ?? "");
             setPrompt(secret?.prompt ?? "");
             setAnswers(secret?.answers ?? []);
@@ -93,6 +106,7 @@ export function PrivateForm({
         else if (isDrawing) values.prompt = prompt;
         else {
           values.text = text;
+          if (isBlind) values.artist = artist.trim();
           values.aliases = aliases
             .split("\n")
             .map((x) => x.trim())
@@ -175,9 +189,11 @@ export function PrivateForm({
           <label>
             {q.kind === "pictionary"
               ? "Ton mot ou ta phrase secrète"
-              : q.kind === "pin"
-                ? `Code fictif à ${PIN_LENGTH} chiffres`
-                : "Ta réponse"}
+              : isBlind
+                ? "Titre de la chanson"
+                : q.kind === "pin"
+                  ? `Code fictif à ${PIN_LENGTH} chiffres`
+                  : "Ta réponse"}
             <input
               required
               type={q.kind === "pin" ? "password" : "text"}
@@ -193,6 +209,24 @@ export function PrivateForm({
               autoComplete="off"
             />
           </label>
+          {isBlind && (
+            <label>
+              Artiste{" "}
+              <small>
+                Facultatif. S’il est rempli, une chanson choisie dans la
+                recherche doit aussi être du bon artiste.
+              </small>
+              <input
+                maxLength={200}
+                value={artist}
+                onChange={(e) => {
+                  setSaved(false);
+                  setArtist(e.target.value);
+                }}
+                autoComplete="off"
+              />
+            </label>
+          )}
           {["text", "blind", "pictionary"].includes(q.kind) && (
             <label>
               Autres réponses acceptées{" "}

@@ -61,6 +61,8 @@ export type Secret = {
   answers?: string[];
   number?: number;
   text?: string;
+  // Blind test: who sings the song whose title is `text`.
+  artist?: string;
   aliases?: string[];
   prompt?: string;
   updatedAt?: number;
@@ -75,10 +77,19 @@ export type Participant = {
   joinedAt: number;
   active: boolean;
 };
+// A song from the blind-test catalogue search.
+export type Song = {
+  id: string;
+  title: string;
+  artist: string;
+  cover?: string;
+};
 export type Submission = {
   id: string;
   playerId: string;
   value: string | string[] | number | Stroke[];
+  // Blind test: the song picked in the search (`value` is then "Artist — Title").
+  song?: Song;
   at: number;
   elapsed: number;
   moderated: boolean;
@@ -169,6 +180,14 @@ export type View = {
   winner?: string;
   result?: { delta: number; correct: boolean; reason: string };
   answer?: Secret;
+  // Blind-test reveal: what each guest answered.
+  picks?: {
+    playerId: string;
+    nickname: string;
+    label: string;
+    cover?: string;
+    correct: boolean;
+  }[];
   questions?: Question[];
   secrets?: Record<string, Secret>;
   submissions?: Submission[];
