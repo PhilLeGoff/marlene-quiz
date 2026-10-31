@@ -92,7 +92,7 @@ Prepared answers remain private, are reused automatically and survive a new-part
 
 ## Préparation des réponses — notes fournies le 29 octobre 2026
 
-Les réponses suivantes sont préremplies et confirmées : Philippe **et** Simone ; France, Canada, Indonésie et Australie ; pipi **et** saut du balcon en culotte ; Nutsy = son cheval ; les trois chansons du blind test ; chaussettes + short + t-shirt ; métier de rêve = prof de plongée ; red flag = cotons-tiges usagés gardés dans une boîte. Les choix contiennent aussi des propositions pièges modifiables. Le blind test propose des cartes de réponses et nécessite toujours des extraits autorisés fournis par l’hôte.
+Les réponses suivantes sont préremplies et confirmées : Philippe **et** Simone ; France, Canada, Indonésie et Australie ; pipi **et** saut du balcon en culotte ; Nutsy = son cheval ; les trois chansons du blind test ; incontournable pour dormir = des chaussettes ; métier de rêve = prof de plongée ; red flag = cotons-tiges usagés gardés dans une boîte. Les choix contiennent aussi des propositions pièges modifiables. Le blind test propose des cartes de réponses et nécessite toujours des extraits autorisés fournis par l’hôte.
 
 La mise à jour est appliquée une seule fois aux parties existantes, en conservant les joueurs, scores, médias et chronos. Une manche déjà ouverte/révélée n’est pas modifiée pendant son déroulement. Les modifications manuelles ultérieures sont conservées. Les valeurs absentes des notes (taille, temps d’écran, réponse au million…) restent à fournir une fois. Le défi créatif ne demande aucune bonne réponse personnelle. La manche intime reste facultative et désactivée sans consentement.
 
