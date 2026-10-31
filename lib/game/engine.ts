@@ -45,6 +45,12 @@ export function correct(
 ): boolean | null {
   if (!q.confirmed || !key) return null;
   if (["creative", "drawing", "reveal"].includes(q.kind)) return null;
+  // Matching rounds: the key names each photo in order; "correct" means every pair right.
+  if (q.kind === "match") {
+    const answers = key.answers;
+    if (!q.photos?.length || answers?.length !== q.photos.length) return null;
+    return Array.isArray(value) && answers.every((a, i) => value[i] === a);
+  }
   if (q.kind === "number")
     return typeof value === "number" && key.number !== undefined
       ? Math.abs(value - key.number) <= q.tolerance
@@ -209,6 +215,12 @@ function scoreRound(s: Party, now: number) {
         sub.value as string[],
       );
       award(s, sub.playerId, delta, now, reason, result, sub.elapsed);
+    } else if (q.kind === "match" && Array.isArray(sub.value)) {
+      const { delta, reason } = matchScore(
+        key!.answers!,
+        sub.value as string[],
+      );
+      award(s, sub.playerId, delta, now, reason, result, sub.elapsed);
     } else
       award(
         s,
@@ -260,6 +272,18 @@ export function optionScore(answers: string[], picked: string[]) {
       ]
         .filter(Boolean)
         .join(", ") || "Aucune réponse cochée",
+  };
+}
+// Matching rounds score each photo: +1 when it got the right name, 0 when wrong or left
+// empty. `picked[i]` is the name given to photo i ("" for none).
+export function matchScore(answers: string[], picked: string[]) {
+  const right = answers.filter((a, i) => picked[i] === a).length;
+  const s = right > 1 ? "s" : "";
+  return {
+    delta: right,
+    reason: right
+      ? `${right} bonne${s} association${s} sur ${answers.length}`
+      : "Aucune bonne association",
   };
 }
 export function validateStrokes(value: unknown): Stroke[] {
@@ -376,6 +400,7 @@ function publicQuestion(q: Question): Question {
     clipEnd: q.clipEnd,
     slider: q.slider,
     keyFromMarlene: q.keyFromMarlene,
+    photos: q.photos,
   };
 }
 export function view(
@@ -438,6 +463,19 @@ export function view(
     const { key, fromMarlene } = marking(s, q);
     v.answer = key;
     if (fromMarlene) v.answerFromMarlene = true;
+  }
+  if (q?.kind === "match" && revealed && actor) {
+    const key = s.secrets[q.id]?.answers ?? [];
+    v.matchRight = (q.photos ?? []).map(
+      (_, i) =>
+        subs.filter(
+          (x) =>
+            !x.moderated &&
+            Array.isArray(x.value) &&
+            !!key[i] &&
+            x.value[i] === key[i],
+        ).length,
+    );
   }
   if (revealed && actor?.playerId) {
     const result = s.events.filter(
@@ -587,6 +625,12 @@ export function reduce(
         "Importe des images autorisées avant cette manche.",
       );
       must(
+        opening.kind !== "match" ||
+          (!!opening.photos?.length &&
+            opening.options.length >= opening.photos.length),
+        "Il faut au moins autant de prénoms que de photos à associer.",
+      );
+      must(
         opening.kind !== "pin" || s.secrets[opening.id]?.text,
         "Définis un code fictif pour le bonus.",
       );
@@ -628,7 +672,21 @@ export function reduce(
       const value = cmd.value;
       must(value !== null && value !== undefined, "Ajoute ta réponse.");
       if (q.kind === "drawing") validateStrokes(value);
-      else if (q.kind === "number")
+      else if (q.kind === "match") {
+        // One name (or "" for none) per photo, each name used at most once.
+        const names = Array.isArray(value) ? value.filter((v) => v !== "") : [];
+        must(
+          Array.isArray(value) &&
+            value.length === (q.photos ?? []).length &&
+            value.every((v) => v === "" || q.options.includes(v)),
+          "Choisis parmi les prénoms proposés.",
+        );
+        must(names.length > 0, "Associe au moins une photo.");
+        must(
+          new Set(names).size === names.length,
+          "Chaque prénom ne va qu’avec une seule photo.",
+        );
+      } else if (q.kind === "number")
         must(
           typeof value === "number" &&
             Number.isFinite(value) &&
@@ -785,6 +843,12 @@ export function reduce(
           "Choix invalides.",
         );
         secret.answers = cmd.answers as string[];
+        if (target.kind === "match")
+          must(
+            secret.answers.length === (target.photos ?? []).length &&
+              new Set(secret.answers).size === secret.answers.length,
+            "Donne un prénom différent à chaque photo.",
+          );
         if (target.kind === "choice" || target.kind === "blind")
           must(
             secret.answers.length === 1,
@@ -959,9 +1023,26 @@ export function reduce(
             new Set(patch.options).size === patch.options.length,
           "Options invalides.",
         );
+        // Renaming the names of a matching round keeps its pairs: the key follows each
+        // option to its new spelling, so the host can fix a name on the live party.
+        const key = s.secrets[item.id]?.answers;
+        const renamed =
+          item.kind === "match" &&
+          key &&
+          patch.options.length === item.options.length
+            ? key.map((name) => patch.options![item.options.indexOf(name)])
+            : undefined;
         item.options = patch.options;
-        item.confirmed = false;
-        delete s.secrets[item.id];
+        if (renamed?.every(Boolean))
+          s.secrets[item.id] = {
+            ...s.secrets[item.id],
+            answers: renamed,
+            updatedAt: now,
+          };
+        else {
+          item.confirmed = false;
+          delete s.secrets[item.id];
+        }
       }
       if (patch.enabled !== undefined) item.enabled = !!patch.enabled;
       if (patch.keyFromMarlene !== undefined) {
@@ -980,6 +1061,7 @@ export function reduce(
             "outfit",
             "pin",
             "photo",
+            "match",
             "creative",
             "pictionary",
             "drawing",

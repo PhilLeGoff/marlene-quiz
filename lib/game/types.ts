@@ -9,6 +9,7 @@ export type Kind =
   | "outfit"
   | "pin"
   | "photo"
+  | "match"
   | "creative"
   | "pictionary"
   | "drawing";
@@ -66,6 +67,9 @@ export type Question = {
   // "Marlène's answer is the key": what she submits in the round is the right answer.
   // She isn't scored on it; the stored key is only the host's fallback if she doesn't answer.
   keyFromMarlene?: boolean;
+  // A "match" round: the IDs of the photos to name (files in assets/exes/, by basename).
+  // The options are the names; the key's `answers[i]` names `photos[i]`.
+  photos?: string[];
 };
 export type Secret = {
   answers?: string[];
@@ -183,6 +187,8 @@ export type View = {
   answerFromMarlene?: boolean;
   // Marlène's own screen only: the Pictionary word she draws, set by the host.
   word?: string;
+  // A revealed "match" round: how many guests named each photo right, in `photos` order.
+  matchRight?: number[];
   questions?: Question[];
   secrets?: Record<string, Secret>;
   submissions?: Submission[];
@@ -258,6 +264,7 @@ export const kindLabels: Record<Kind, string> = {
   outfit: "Le pyjama parfait",
   pin: "Code mystère",
   photo: "Qui est qui ?",
+  match: "Qui va avec qui ?",
   creative: "Carte blanche",
   pictionary: "Pictionary",
   drawing: "Concours de dessin",

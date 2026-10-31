@@ -383,12 +383,17 @@ export function Admin() {
                           sub.value[0] &&
                           typeof sub.value[0] === "object"
                             ? "Un chef-d’œuvre attend son verdict."
-                            : Array.isArray(sub.value)
-                              ? sub.value.join(", ")
-                              : typeof sub.value === "number" &&
-                                  isTime(question)
-                                ? formatTime(sub.value)
-                                : String(sub.value)}
+                            : Array.isArray(sub.value) &&
+                                question?.kind === "match"
+                              ? sub.value
+                                  .map((v, i) => `${i + 1} : ${v || "—"}`)
+                                  .join(" · ")
+                              : Array.isArray(sub.value)
+                                ? sub.value.join(", ")
+                                : typeof sub.value === "number" &&
+                                    isTime(question)
+                                  ? formatTime(sub.value)
+                                  : String(sub.value)}
                         </div>
                       )}
                       {!sub.moderated && (

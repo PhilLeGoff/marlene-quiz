@@ -16,6 +16,7 @@ import {
 } from "./shared";
 import { DrawingCanvas } from "./canvas";
 import { MarleneSlideshow, useMarlenePhotos } from "./marlene-photos";
+import { MatchBoard } from "./match";
 import { OPEN, REVEALED } from "@/lib/game/types";
 const noSubscribe = () => () => {};
 /** What the TV shows before the game starts: a QR code big enough to scan from the sofa. */
@@ -66,7 +67,8 @@ export function Present() {
     !!photos.length &&
     !!d &&
     OPEN.includes(d.phase) &&
-    d.question?.kind !== "pictionary";
+    d.question?.kind !== "pictionary" &&
+    d.question?.kind !== "match";
   return (
     <div className="presentation">
       <header>
@@ -145,7 +147,7 @@ export function Present() {
               </>
             ) : (
               // While everyone answers, the album of Marlène sits beside the question.
-              // Not during Pictionary: the live drawing needs the whole screen.
+              // Not during Pictionary or a matching round: they need the whole screen.
               <div className={`present-stage ${album ? "album" : ""}`}>
                 <div>
                   {d.question?.kind === "blind" && (
@@ -160,6 +162,8 @@ export function Present() {
                       title={d.answer?.prompt ?? "À vos chefs-d’œuvre !"}
                       text="Dessinez sur vos téléphones. Le talent est facultatif."
                     />
+                  ) : d.question?.kind === "match" ? (
+                    <MatchBoard q={d.question} />
                   ) : d.question?.options.length ? (
                     <div
                       className={`answer-grid ${d.question.options.length > 6 ? "large" : d.question.options.length > 4 ? "six" : ""}`}

@@ -9,6 +9,7 @@ import { PinPad } from "./pin-pad";
 import { PIN_LENGTH } from "@/lib/game/vip";
 import { MarleneSlideshow } from "./marlene-photos";
 import { formatGap, formatNumber, formatTime, isTime } from "@/lib/game/time";
+import { MatchAnswer } from "./match";
 export function Answer({ data, c }: { data: View; c: PartyClient }) {
   const q = data.question!;
   const [selected, setSelected] = useState<string[]>([]),
@@ -49,6 +50,8 @@ export function Answer({ data, c }: { data: View; c: PartyClient }) {
         <MarleneSlideshow />
       </>
     );
+  if (q.kind === "match")
+    return <MatchAnswer q={q} busy={c.busy} onSubmit={(v) => void submit(v)} />;
   // On the rounds whose key is Marlène's own answer, everyone knows hers is the one that counts.
   const reference = !!q.keyFromMarlene && data.role === "marlene";
   const keyNote = q.keyFromMarlene ? (
