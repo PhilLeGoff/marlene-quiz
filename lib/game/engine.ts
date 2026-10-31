@@ -127,6 +127,51 @@ function marking(s: Party, q: Question) {
     ? { q: { ...q, confirmed: true }, key: hers, fromMarlene: true }
     : { q, key: s.secrets[q.id] as Secret | undefined, fromMarlene: false };
 }
+// Removes every player and sign-in except the players in `keep`. Selfies all go, the kept
+// players' included; the caller deletes the files (see droppedSelfies).
+function clearPeople(s: Party, keep: string[]) {
+  s.players = s.players.filter((p) => keep.includes(p.id));
+  for (const p of s.players) delete p.photo;
+  for (const [key, session] of Object.entries(s.sessions))
+    if (!session.playerId || !keep.includes(session.playerId))
+      delete s.sessions[key];
+}
+// Selfie files that `before` points at and `after` no longer does. Media used by a question
+// (a blind-test song, a round's photo) is never in the list, even if a player pointed at it.
+export function droppedSelfies(before: Party, after: Party): string[] {
+  const kept = new Set(after.players.map((p) => p.photo));
+  const questionMedia = before.questions.flatMap((q) => q.media).join(" ");
+  return [
+    ...new Set(
+      before.players
+        .map((p) => p.photo)
+        .filter(
+          (id): id is string =>
+            !!id && !kept.has(id) && !questionMedia.includes(id),
+        ),
+    ),
+  ];
+}
+// A game that ended (podium shown) and that nobody reset is wiped like a reset this long after
+// it finished, so no guest, sign-in or selfie lingers.
+export const FINISHED_WIPE_MS = 60 * 60 * 1000;
+// Returns `p` itself when there is nothing to do, so callers only write when it changed.
+export function wipeFinished(p: Party, now = Date.now()): Party {
+  if (p.phase !== "finished") return p;
+  // Parties that finished before finishedAt existed start the clock now.
+  if (!p.finishedAt) return { ...p, finishedAt: now };
+  if (now - p.finishedAt < FINISHED_WIPE_MS) return p;
+  return reduce(
+    p,
+    { role: "admin" },
+    {
+      id: `auto-wipe-${p.generation}-${p.finishedAt}`,
+      action: "reset",
+      confirm: p.room,
+    },
+    now,
+  );
+}
 export function leaderboard(s: Party): RankedPlayer[] {
   const rows = s.players
     .filter(isPlayer)
@@ -828,6 +873,7 @@ export function reduce(
       const next = s.questions.findIndex((x, i) => i > s.index && x.enabled);
       s.index = next < 0 ? s.index : next;
       s.phase = next < 0 ? "finished" : "next_round";
+      if (next < 0) s.finishedAt = now;
       s.deadline = 0;
       s.strokes = [];
       s.audio.playing = false;
@@ -835,6 +881,7 @@ export function reduce(
     }
     case "finish":
       s.phase = "finished";
+      s.finishedAt = now;
       s.finishedEarly = true;
       s.deadline = 0;
       s.strokes = [];
@@ -1322,6 +1369,17 @@ export function reduce(
       );
       s.generation++;
       s.finishedEarly = false;
+      delete s.finishedAt;
+      // A new game starts with nobody: guests and Marlène sign in again. The host starting it
+      // stays; the automatic clean-up (no host behind it) keeps the signed-in hosts.
+      clearPeople(
+        s,
+        actor.playerId
+          ? [actor.playerId]
+          : Object.values(s.sessions)
+              .filter((x) => x.role === "admin" && x.expires > now)
+              .map((x) => x.playerId ?? ""),
+      );
       s.index = -1;
       s.phase = "lobby";
       s.roundId = "";

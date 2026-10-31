@@ -1,6 +1,6 @@
 import { env } from "party-runtime";
 import type { Party } from "./types";
-import { GameError } from "./engine";
+import { GameError, droppedSelfies } from "./engine";
 import { parseRange } from "./range";
 export function config(name: string): string {
   return String(
@@ -95,6 +95,22 @@ export async function mutate(fn: (p: Party) => Promise<Party> | Party) {
     );
   }
   throw new GameError("Tout le monde répond en même temps ! Réessaie.", 409);
+}
+// `mutate` for changes that can remove players (a reset, the clean-up after a game): deletes
+// the selfie files they leave behind. Only after the commit, and only what the committed
+// attempt dropped, so a lost race never deletes a photo still in use.
+export async function mutateDroppingSelfies(
+  fn: (p: Party) => Promise<Party> | Party,
+) {
+  let dropped: string[] = [];
+  const result = await mutate(async (p) => {
+    const next = await fn(p);
+    dropped = droppedSelfies(p, next);
+    return next;
+  });
+  // Best effort: a file that is already gone is fine, and a leftover is private.
+  await Promise.all(dropped.map((id) => deleteMedia(id).catch(() => {})));
+  return result;
 }
 export async function rateLimit(key: string, max = 60, windowMs = 60_000) {
   const bucket = Math.floor(Date.now() / windowMs);

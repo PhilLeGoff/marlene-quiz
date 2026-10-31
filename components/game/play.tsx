@@ -29,6 +29,12 @@ export function Play() {
   useEffect(() => {
     if (d?.initialized && d.role !== "guest") setHint(true);
   }, [d?.initialized, d?.role]);
+  // No sign-in (the host started a new game, or the finished one was cleaned up): back to
+  // the join screen to enter a name again.
+  const signedOut = !!d?.initialized && !d.role;
+  useEffect(() => {
+    if (signedOut) location.replace("/");
+  }, [signedOut]);
   return (
     <AppShell c={c} role="guest">
       {c.loading ? (

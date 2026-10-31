@@ -193,7 +193,13 @@ export function Admin() {
                       <PlayerBubbles data={d} />
                     </>
                   ) : d.phase === "finished" ? (
-                    <Ranking data={d} final />
+                    <>
+                      <Ranking data={d} final />
+                      <p className="small-text">
+                        Sans nouvelle partie, les invités et leurs selfies
+                        seront effacés automatiquement une heure après la fin.
+                      </p>
+                    </>
                   ) : (
                     <>
                       <h2 className="question-title">{question?.title}</h2>
@@ -784,9 +790,9 @@ export function Admin() {
               <h2>On recommence à zéro ?</h2>
               <p>
                 Les points, le classement, les participations et les dessins
-                seront remis à zéro. Tout le monde reviendra au salon, sans
-                devoir se reconnecter. Les questions et leurs bonnes réponses
-                enregistrées seront conservées.
+                seront remis à zéro. Les invités et leurs selfies seront effacés
+                : chacun (Marlène comprise) devra se reconnecter. Les questions
+                et leurs bonnes réponses enregistrées seront conservées.
               </p>
               {c.error && (
                 <p className="error" role="alert">

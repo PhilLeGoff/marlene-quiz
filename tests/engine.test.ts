@@ -5,13 +5,16 @@ import {
   seedQuestions,
 } from "../lib/game/seed";
 import {
+  FINISHED_WIPE_MS,
   correct,
+  droppedSelfies,
   leaderboard,
   normalize,
   reduce,
   setPhoto,
   validateStrokes,
   view,
+  wipeFinished,
 } from "../lib/game/engine";
 import type { Actor, Command, Party, Stroke } from "../lib/game/types";
 import { isMultiSelect, showsSelfieStep } from "../lib/game/types";
@@ -577,6 +580,8 @@ describe("submissions, timers, drawing and winner races", () => {
     p = run(p, admin, "close");
     p = run(p, admin, "reset", { confirm: "123456" });
     expect(p.events).toHaveLength(1);
+    // Alice signs in again for the new game and starts from zero.
+    p = run(p, guest(), "join", { nickname: "Alice" });
     expect(leaderboard(p)[0].score).toBe(0);
     expect(p.phase).toBe("lobby");
   });
@@ -1000,4 +1005,147 @@ describe("selfies", () => {
     expect(() => run(party(), guest(), "photo", { photo: first })).toThrow(
       "Action inconnue",
     ));
+});
+
+describe("wiping players after a game", () => {
+  const aliceSelfie = "11111111-1111-4111-8111-111111111111",
+    bobSelfie = "22222222-2222-4222-8222-222222222222",
+    hostSelfie = "33333333-3333-4333-8333-333333333333",
+    marleneSelfie = "55555555-5555-4555-8555-555555555555",
+    song = "44444444-4444-4444-8444-444444444444";
+  const host: Actor = { role: "admin", playerId: "host" };
+  // A finished game: two guests with selfies, Marlène, a host, their sign-ins and scores.
+  function finished(now = 5000) {
+    let p = opened();
+    p.players.push(
+      {
+        id: "host",
+        nickname: "Hôte",
+        avatar: 2,
+        active: true,
+        joinedAt: 1002,
+        role: "admin",
+      },
+      {
+        id: "marlene-vip",
+        nickname: "Marlène",
+        avatar: 3,
+        active: true,
+        joinedAt: 1003,
+        role: "marlene",
+      },
+    );
+    p.players[0].photo = aliceSelfie;
+    p.players[1].photo = bobSelfie;
+    p.players[2].photo = hostSelfie;
+    p.players[3].photo = marleneSelfie;
+    p.questions[0].media = [`/api/media?id=${song}`];
+    p.vipPin = "246810";
+    const expires = 10 ** 13;
+    p.sessions = {
+      a: { role: "guest", playerId: "alice", expires },
+      b: { role: "guest", playerId: "bob", expires },
+      h: { role: "admin", playerId: "host", expires },
+      m: { role: "marlene", playerId: "marlene-vip", expires },
+    };
+    p = run(p, guest(), "submit", { value: ["Elle a fait pipi"] });
+    // Marlène plays too, and scores.
+    p = run(p, { role: "marlene", playerId: "marlene-vip" }, "submit", {
+      value: ["Elle a fait pipi"],
+    });
+    p = run(p, admin, "close");
+    p.strokes = [{ id: "s1", color: "#000", size: 4, points: [] }];
+    return run(p, admin, "finish", {}, now);
+  }
+  it("records when the game finished, by the last round or the host", () => {
+    expect(finished(5000).finishedAt).toBe(5000);
+    let p = opened();
+    p = run(p, admin, "close");
+    p = run(p, admin, "next", {}, 7000);
+    expect(p.phase).toBe("finished");
+    expect(p.finishedAt).toBe(7000);
+  });
+  it("a reset signs everyone out but the host doing it and keeps the quiz", () => {
+    const before = finished();
+    const p = run(before, host, "reset", { confirm: "123456" });
+    expect(p.players.map((x) => x.id)).toEqual(["host"]);
+    expect(p.players[0].photo).toBeUndefined();
+    expect(Object.keys(p.sessions)).toEqual(["h"]);
+    expect(p.submissions).toEqual({});
+    expect(p.strokes).toEqual([]);
+    expect(p.phase).toBe("lobby");
+    expect(p.finishedAt).toBeUndefined();
+    expect(p.generation).toBe(before.generation + 1);
+    expect(p.questions).toEqual(before.questions);
+    expect(p.secrets).toEqual(before.secrets);
+    expect(p.vipPin).toBe("246810");
+    expect(p.events).toEqual(before.events);
+    expect(p.events.length).toBeGreaterThan(0);
+    expect(leaderboard(p)).toEqual([]);
+  });
+  it("signs Marlène out too: she comes back with her PIN, no points and no selfie", () => {
+    const before = finished();
+    expect(leaderboard(before).find((x) => x.id === "marlene-vip")!.score).toBe(
+      1,
+    );
+    let p = run(before, host, "reset", { confirm: "123456" });
+    expect(p.players.some((x) => x.role === "marlene")).toBe(false);
+    expect(Object.values(p.sessions).some((x) => x.role === "marlene")).toBe(
+      false,
+    );
+    const me: Actor = { role: "marlene", playerId: "marlene-vip" };
+    p = run(p, me, "join", { nickname: "Marlène" });
+    const v = view(p, me, 1);
+    expect(v.players.find((x) => x.id === "marlene-vip")).toMatchObject({
+      score: 0,
+    });
+    expect(
+      v.players.find((x) => x.id === "marlene-vip")?.photo,
+    ).toBeUndefined();
+    // So she takes a new selfie before playing, like a guest.
+    expect(showsSelfieStep(v)).toBe(true);
+  });
+  it("lists every selfie a reset drops, never a question's media", () => {
+    const before = finished();
+    // A player pointing at the round's song must not get the song deleted.
+    before.players[1].photo = song;
+    const after = run(before, host, "reset", { confirm: "123456" });
+    expect(droppedSelfies(before, after).sort()).toEqual(
+      [aliceSelfie, hostSelfie, marleneSelfie].sort(),
+    );
+    expect(droppedSelfies(after, after)).toEqual([]);
+  });
+  it("wipes a finished game an hour later, not before", () => {
+    const p = finished(5000);
+    expect(wipeFinished(p, 5000 + FINISHED_WIPE_MS - 1)).toBe(p);
+    const wiped = wipeFinished(p, 5000 + FINISHED_WIPE_MS);
+    expect(wiped.phase).toBe("lobby");
+    expect(wiped.generation).toBe(p.generation + 1);
+    // Guests and Marlène go; the signed-in host stays, without a selfie.
+    expect(wiped.players.map((x) => x.id)).toEqual(["host"]);
+    expect(Object.keys(wiped.sessions)).toEqual(["h"]);
+    expect(wiped.submissions).toEqual({});
+    expect(wiped.questions).toEqual(p.questions);
+    expect(wiped.secrets).toEqual(p.secrets);
+    expect(wiped.events).toEqual(p.events);
+    expect(droppedSelfies(p, wiped).sort()).toEqual(
+      [aliceSelfie, bobSelfie, hostSelfie, marleneSelfie].sort(),
+    );
+    // Once wiped there is nothing left to do.
+    expect(wipeFinished(wiped, 5000 + 3 * FINISHED_WIPE_MS)).toBe(wiped);
+  });
+  it("never wipes a game that is not finished", () => {
+    const p = opened();
+    expect(wipeFinished(p, 10 ** 12)).toBe(p);
+    const lobby = party();
+    expect(wipeFinished(lobby, 10 ** 12)).toBe(lobby);
+  });
+  it("starts the clock for a party stored finished before finishedAt existed", () => {
+    const p = finished(5000);
+    delete p.finishedAt;
+    const stamped = wipeFinished(p, 9000);
+    expect(stamped.finishedAt).toBe(9000);
+    expect(stamped.players).toHaveLength(p.players.length);
+    expect(wipeFinished(stamped, 9000 + FINISHED_WIPE_MS).phase).toBe("lobby");
+  });
 });
