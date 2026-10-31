@@ -254,18 +254,21 @@ export const suppliedAnswers: Record<string, Secret> = {
 // Parties stored before the VIP code had its own field kept it as the answer to the
 // former bonus question q8 "Quel est le code PIN de Marlène ?" (6 digits, default
 // 123456). Move it to `vipPin`, then drop q8 as soon as it isn't being played.
-// A stored code that isn't 4 digits can't be typed on the 4-digit pad any more, so it
-// becomes the new default 1234. Score events already awarded for q8 are kept.
+// For a while the code had 4 digits (default 1234). A stored code that isn't 6 digits,
+// that old default included, can't be typed on the 6-digit pad, so it becomes the
+// default 123456; a 6-digit code the host chose is kept. Score events already awarded
+// for q8 are kept.
 function upgradeVipPin(original: Party): Party {
   const legacy = original.questions.findIndex((q) => q.id === "q8");
   const playing =
     legacy >= 0 &&
     legacy === original.index &&
     !["lobby", "next_round", "finished"].includes(original.phase);
-  if (original.vipPin !== undefined && (legacy < 0 || playing)) return original;
+  if (isPin(original.vipPin) && (legacy < 0 || playing)) return original;
   const next = structuredClone(original);
-  if (next.vipPin === undefined) {
-    const stored = original.secrets.q8?.text;
+  if (!isPin(next.vipPin)) {
+    const stored =
+      next.vipPin === undefined ? original.secrets.q8?.text : undefined;
     next.vipPin = isPin(stored) ? stored : MARLENE_PIN;
   }
   if (legacy < 0 || playing) return next;

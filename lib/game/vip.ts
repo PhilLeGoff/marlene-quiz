@@ -1,9 +1,9 @@
 // Marlène's VIP identity, shared by the server and the browser (no server-only imports here).
 export const MARLENE_NAME = "Marlène";
 // Default VIP code for new parties; the host can change it in the admin settings.
-export const MARLENE_PIN = "1234";
+export const MARLENE_PIN = "123456";
 // Length of every game code: Marlène's VIP code and any "Code mystère" round.
-export const PIN_LENGTH = 4;
+export const PIN_LENGTH = 6;
 export const isPin = (value: unknown): value is string =>
   typeof value === "string" && new RegExp(`^\\d{${PIN_LENGTH}}$`).test(value);
 // Compares names regardless of Unicode form, accents, casing and spacing.

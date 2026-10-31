@@ -71,7 +71,7 @@ describe("admin password gate", () => {
         expires: Date.now() + 60000,
         // Marlène's session is bound to her PIN, not to the admin password.
         ...(role === "marlene"
-          ? { marleneProof: await requireMarlenePin("1234") }
+          ? { marleneProof: await requireMarlenePin("123456") }
           : {}),
       };
       const req = new Request("https://party.test", {
