@@ -85,6 +85,7 @@ test("a whole party from the guest phones, Marlène’s space, the TV and the ho
     };
     if (q.kind === "blind") {
       patch.media = [clip];
+      patch.clipStart = 0; // blindtest-clip.spec may have moved the section past 1 s
       patch.clipEnd = 1;
     }
     if (TYPED_BY_MARLENE.includes(q.id)) patch.options = []; // clears the stored key

@@ -1,36 +1,8 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect } from "@playwright/test";
+import { joinWithSelfie } from "./helpers";
 const origin = process.env.TEST_BASE_URL ?? "http://127.0.0.1:3105";
 const unique = (name: string) => `${name} ${crypto.randomUUID().slice(0, 4)}`;
 const hint = "Plusieurs réponses possibles";
-// Joins through the selfie step with a JPEG drawn in the page, so the spec does not
-// depend on whether the selfie can be skipped.
-async function joinWithSelfie(page: Page, nickname: string) {
-  await page.goto("/");
-  await page.getByLabel("Ton petit nom").fill(nickname);
-  await page.getByRole("button", { name: /Rejoindre la fête/ }).click();
-  const camera = await page.evaluate(async () => {
-    const canvas = document.createElement("canvas");
-    canvas.width = 320;
-    canvas.height = 320;
-    const g = canvas.getContext("2d")!;
-    g.fillStyle = "#f87979";
-    g.fillRect(0, 0, 320, 320);
-    const blob = await new Promise<Blob>((resolve) =>
-      canvas.toBlob((b) => resolve(b!), "image/jpeg", 0.9),
-    );
-    let binary = "";
-    for (const byte of new Uint8Array(await blob.arrayBuffer()))
-      binary += String.fromCharCode(byte);
-    return btoa(binary);
-  });
-  await page.locator('input[type="file"]').setInputFiles({
-    name: "selfie.jpg",
-    mimeType: "image/jpeg",
-    buffer: Buffer.from(camera, "base64"),
-  });
-  await page.getByRole("button", { name: /C’est moi/ }).click();
-  await expect(page.getByText("Tu es sur la liste !")).toBeVisible();
-}
 test("multi-answer questions say so under the title, single-choice ones don't", async ({
   browser,
 }) => {
