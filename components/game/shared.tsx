@@ -15,6 +15,7 @@ import type { PartyClient } from "./use-party";
 import type { Question, Role, Stroke, View } from "@/lib/game/types";
 import { isMultiSelect, kindLabels, REVEALED } from "@/lib/game/types";
 import { DrawingCanvas, DrawingPreview } from "./canvas";
+import { formatNumber } from "@/lib/game/time";
 export const phaseLabels: Record<string, string> = {
   lobby: "Les invités arrivent",
   question_open: "À vous de jouer",
@@ -257,7 +258,7 @@ export function Reveal({ data }: { data: View }) {
             <h2>
               {answer.answers?.join(" + ") ??
                 answer.text ??
-                `${answer.number} ${q?.unit ?? ""}`}
+                formatNumber(q, answer.number!)}
             </h2>
           </div>
         )}

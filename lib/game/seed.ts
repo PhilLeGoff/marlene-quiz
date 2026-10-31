@@ -40,6 +40,7 @@ const pictionaryNote =
   "L’hôte choisit le mot secret, Marlène le dessine. Première bonne réponse : +5.";
 const drawingNote =
   "L’hôte choisit le thème, Marlène vote anonymement. Un seul gagnant : +5.";
+export const RUN_ID = "run5k";
 export const seedQuestions: Question[] = [
   q(
     1,
@@ -171,10 +172,15 @@ export const seedQuestions: Question[] = [
       note: "Bonne réponse fournie : des chaussettes. Masque de nuit, bouchons d’oreilles et podcast de true crime sont des propositions pièges générées et modifiables.",
     },
   ),
-  q(9, "Quel est le temps d’écran de Marlène ?", "number", [], {
-    unit: "minutes / jour",
-    note: "Période : moyenne quotidienne des 7 derniers jours. Modifiable avant la manche.",
-  }),
+  {
+    // Replaces the screen-time question, which had id q9: a new id so its key can't leak in.
+    ...q(9, "Quel est le meilleur temps de Marlène sur 5 km ?", "number", [], {
+      note: "La réponse de Marlène pendant la manche fait foi. 5 points pile poil, un de moins par minute d’écart.",
+      slider: { min: 900, max: 3600, step: 15, format: "time", pointEvery: 60 },
+      keyFromMarlene: true,
+    }),
+    id: RUN_ID,
+  },
   q(
     10,
     "Quel est le métier de rêve de Marlène ?",
@@ -373,9 +379,9 @@ export function applySuppliedAnswers(stored: Party): Party {
       ...source.slider,
     };
   }
-  return upgradeMarleneKeys(upgradeSleepQuestion(next));
+  return upgradeMarleneKeys(upgradeRunQuestion(upgradeSleepQuestion(next)));
 }
-// Marlène used to type the keys about herself (height, body count, the million) in her
+// Marlène used to type the keys about herself (height, body count, the million, the 5 km) in her
 // space, and the Pictionary word and drawing theme. She now answers those rounds in-game
 // and her answer is the key; the host sets the word and the theme. Stored parties get the
 // `keyFromMarlene` flag the seed has, unless the host already set it either way; keys
@@ -435,6 +441,45 @@ function upgradeSleepQuestion(original: Party): Party {
     confirmed: true,
   });
   next.secrets.q7 = structuredClone(suppliedAnswers.q7);
+  return next;
+}
+// q9 used to ask for Marlène's screen time. Stored parties get the 5 km time in its
+// place, once, as long as q9 hasn't been reached or scored in the current generation
+// (older generations are rehearsals before a reset). A party without q9 gets the new
+// question after the sleep round, unless the host already deleted it after an upgrade.
+const runVersion = "run-5k-2026-10-31-v1";
+function upgradeRunQuestion(original: Party): Party {
+  const at = original.questions.findIndex((q) => q.id === "q9");
+  const has = original.questions.some((q) => q.id === RUN_ID);
+  if (
+    at < 0 &&
+    (has || original.questionPresetVersions?.[RUN_ID] === runVersion)
+  )
+    return original;
+  if (at >= 0) {
+    const reached =
+      at < original.index ||
+      (at === original.index &&
+        !["lobby", "next_round"].includes(original.phase));
+    const scored = original.events.some(
+      (e) => e.questionId === "q9" && e.generation === original.generation,
+    );
+    if (reached || scored) return original;
+  }
+  const next = structuredClone(original);
+  const source = structuredClone(seedQuestions.find((q) => q.id === RUN_ID)!);
+  if (at >= 0) {
+    // Same slot, so `index` still points at the same round (or at this one, if queued).
+    next.questions.splice(at, 1, ...(has ? [] : [source]));
+    delete next.secrets.q9;
+    delete next.questionPresetVersions?.q9;
+  } else {
+    const after = next.questions.findIndex((q) => q.id === "q7");
+    const slot = after < 0 ? next.questions.length : after + 1;
+    next.questions.splice(slot, 0, source);
+    if (next.index >= slot) next.index++;
+  }
+  (next.questionPresetVersions ??= {})[RUN_ID] = runVersion;
   return next;
 }
 export function createParty(

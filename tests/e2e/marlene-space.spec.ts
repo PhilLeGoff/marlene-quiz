@@ -91,7 +91,7 @@ test("Marlène signs in with her PIN, never sees the answer keys, and plays a ro
     starCtx.request,
     "marlene",
     "private",
-    { questionId: "q9", number: 317 },
+    { questionId: "run5k", number: 1877 },
     403,
   );
 

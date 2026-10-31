@@ -33,7 +33,7 @@ const ORDER = [
   "q6b",
   "q6c",
   "q7",
-  "q9",
+  "run5k",
   "q10",
   "q11",
   "q12",
@@ -44,13 +44,14 @@ const ORDER = [
   "q17",
 ];
 // Keys set during this test, so they start empty: Marlène's own in-game answers (height,
-// body count, the million) and the host's (screen time, the Pictionary word, the theme).
-const SET_DURING_TEST = ["q5", "q9", "q11", "q14", "q16", "q17"];
+// 5 km, body count, the million) and the host's (the Pictionary word, the theme).
+const SET_DURING_TEST = ["q5", "run5k", "q11", "q14", "q16", "q17"];
 // The rounds whose key is Marlène's answer: she isn't scored on them.
-const HER_ANSWER_IS_THE_KEY = ["q5", "q11", "q14"];
+const HER_ANSWER_IS_THE_KEY = ["q5", "run5k", "q11", "q14"];
 const KEYS = {
   height: 168,
-  screenTime: 240,
+  run: "27:45", // 1665 s
+  runSeconds: 1665,
   bodyCount: 3,
   dream: "Faire le tour du monde",
   word: "Éléphant rose",
@@ -157,10 +158,6 @@ test("a whole party from the guest phones, Marlène’s space, the TV and the ho
 
   // ── The host sets the keys only the host knows; Marlène sets none ──────────────────
   const bodyCount = has("q11") ? "q11" : undefined;
-  await api(host, "admin", "private", {
-    questionId: "q9",
-    number: KEYS.screenTime,
-  });
   await hp.getByRole("tab", { name: "Les manches" }).click();
   // The height's key is Marlène's answer: the editor says so, and the host can change it.
   await hp.getByRole("button", { name: `Modifier ${title("q5")}` }).click();
@@ -437,7 +434,8 @@ test("a whole party from the guest phones, Marlène’s space, the TV and the ho
     await expect(slider).toBeVisible(PHONE);
     await slider.focus();
     const centre = Number(await slider.inputValue());
-    for (let i = 0; i < Math.abs(centre - to); i++)
+    const step = Number((await slider.getAttribute("step")) ?? 1);
+    for (let i = 0; i < Math.abs(centre - to) / step; i++)
       await page.keyboard.press(centre > to ? "ArrowLeft" : "ArrowRight");
     await expect(slider).toHaveValue(String(to));
   }
@@ -527,16 +525,42 @@ test("a whole party from the guest phones, Marlène’s space, the TV and the ho
   await expect(result(bob).locator("strong")).toHaveText("-1 point", PHONE);
   await next();
 
-  // ── Screen time: Bob doesn't answer, so the host closes it ────────────────────────
-  await open("q9");
-  await alice.locator("input.number-answer").fill(String(KEYS.screenTime));
+  // ── Best 5 km time: Marlène's answer is the key, on a mm:ss slider in 15 s steps ─────
+  await open("run5k");
+  await expect(alice.locator(".slider-bounds")).toContainText("15:00");
+  await expect(alice.locator(".slider-bounds")).toContainText("60:00");
+  await slide(alice, KEYS.runSeconds);
+  await expect(alice.locator(".slider-answer output")).toHaveText(KEYS.run);
   await alice.getByRole("button", { name: /Envoyer ma réponse/ }).click();
   await firstAnswerShows(alice);
+  // Marlène answers with the same slider; her time becomes the key.
+  await expect(mp.getByText(/Ta réponse sera la bonne réponse/)).toBeVisible(
+    PHONE,
+  );
+  await slide(mp, KEYS.runSeconds);
+  await mp.getByRole("button", { name: /Envoyer ma réponse/ }).click();
+  await submitted(mp);
+  // Bob doesn't answer, so the host closes it; her answer marks it.
   expect((await state(host)).phase).toBe("question_open");
+  for (const view of [
+    await state(aliceCtx.request, "guest"),
+    await projectorState(tvCtx.request),
+  ])
+    expect(JSON.stringify(view)).not.toContain(String(KEYS.runSeconds));
   await settle();
-  await revealed(String(KEYS.screenTime));
-  await expect(result(alice)).toHaveClass(/positive/, PHONE);
+  await revealed(KEYS.run);
+  await expect(tv.locator(".reveal-answer").first()).toContainText(
+    "Réponse de Marlène",
+  );
+  await expect(result(alice).locator("strong")).toHaveText("+5 points", PHONE);
+  await expect(result(alice)).toContainText("Pile poil !");
   await expect(result(bob)).toHaveCount(0);
+  await expect(result(mp)).toHaveCount(0);
+  await expect(
+    hp
+      .locator(".submission-row", { hasText: aliceName })
+      .locator(".submission-value"),
+  ).toHaveText(KEYS.run);
   await next();
 
   // ── Dream job: the host adds 30 seconds ───────────────────────────────────────────
