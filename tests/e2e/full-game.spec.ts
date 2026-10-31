@@ -603,11 +603,18 @@ test("a whole party from the guest phones, Marlène’s space, the TV and the ho
   await submitted(mp);
   // Bob doesn't answer, so the host closes it; her answer marks it.
   expect((await state(host)).phase).toBe("question_open");
+  // Alice answered the same time: only her own submission may carry it, never Marlène's.
   for (const view of [
     await state(aliceCtx.request, "guest"),
     await projectorState(tvCtx.request),
-  ])
-    expect(JSON.stringify(view)).not.toContain(String(KEYS.runSeconds));
+  ]) {
+    expect(view.answer).toBeUndefined();
+    expect(view.submissions).toBeUndefined();
+    delete view.mySubmission;
+    expect(JSON.stringify(view)).not.toMatch(
+      new RegExp(`[:,\\[]${KEYS.runSeconds}[,}\\]]`),
+    );
+  }
   await settle();
   await revealed(KEYS.run);
   await expect(tv.locator(".reveal-answer").first()).toContainText(
