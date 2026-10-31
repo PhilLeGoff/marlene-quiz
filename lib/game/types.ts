@@ -108,6 +108,8 @@ export type Session = {
 };
 export type Party = {
   finishedEarly?: boolean;
+  // When the game reached the podium; missing on parties stored before it existed.
+  finishedAt?: number;
   questionPresetVersions?: Record<string, string>;
   room: string;
   phase: Phase;

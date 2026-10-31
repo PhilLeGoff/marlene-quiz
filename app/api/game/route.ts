@@ -12,6 +12,7 @@ import {
   config,
   insertParty,
   mutate,
+  mutateDroppingSelfies,
   rateLimit,
   readParty,
   putMedia,
@@ -22,6 +23,7 @@ import {
   view,
   validateStrokes,
   nicknameKey,
+  wipeFinished,
 } from "@/lib/game/engine";
 import { createParty, applySuppliedAnswers } from "@/lib/game/seed";
 import type { Actor, Command, Role } from "@/lib/game/types";
@@ -62,6 +64,9 @@ export async function GET(req: Request) {
     let current = await readParty();
     if (current && applySuppliedAnswers(current.party) !== current.party)
       current = await mutate((p) => applySuppliedAnswers(p));
+    // An hour after the podium, a game nobody reset is wiped on the next request.
+    if (current && wipeFinished(current.party) !== current.party)
+      current = await mutateDroppingSelfies((p) => wipeFinished(p));
     if (
       current &&
       current.party.consent &&
@@ -153,8 +158,9 @@ export async function POST(req: Request) {
         key = await hash(t),
         freshId = crypto.randomUUID();
       let joined: Actor = { role, playerId: freshId };
-      const result = await mutate(async (p) => {
-        p = applySuppliedAnswers(p);
+      const result = await mutateDroppingSelfies(async (p) => {
+        // A guest joining a long-finished game joins the fresh one, not the stale one.
+        p = wipeFinished(applySuppliedAnswers(p));
         const marleneProof =
           role === "marlene"
             ? await requireMarlenePin(body.pin, p.vipPin)
@@ -281,7 +287,8 @@ export async function POST(req: Request) {
         "application/json",
       );
     }
-    const result = await mutate(async (p) => {
+    // A reset removes every player but the host; their selfie files go after the commit.
+    const result = await mutateDroppingSelfies(async (p) => {
       p = applySuppliedAnswers(p);
       const live = await actor(req, p, role);
       if (!live) throw new GameError("Session expirée.", 401);

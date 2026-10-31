@@ -3,7 +3,12 @@ import { DatabaseSync } from "node:sqlite";
 import { readFileSync } from "node:fs";
 import { env } from "./cloudflare-env";
 import { createParty } from "../lib/game/seed";
-import { insertParty, mutate, readParty } from "../lib/game/store";
+import {
+  insertParty,
+  mutate,
+  mutateDroppingSelfies,
+  readParty,
+} from "../lib/game/store";
 import { reduce } from "../lib/game/engine";
 import type { Party } from "../lib/game/types";
 let db: DatabaseSync;
@@ -127,5 +132,49 @@ describe("database integration", () => {
     await expect(mutate((p) => ({ ...p, events: [] }))).rejects.toThrow(
       "append-only",
     );
+  });
+});
+
+describe("selfie clean-up on reset", () => {
+  it("deletes the dropped selfies after the commit, ignoring files already gone, and keeps score history", async () => {
+    const p = await fixture();
+    p.players[0].photo = "11111111-1111-4111-8111-111111111111";
+    p.players[1].photo = "22222222-2222-4222-8222-222222222222";
+    p.questions[0].media = [
+      "/api/media?id=33333333-3333-4333-8333-333333333333",
+    ];
+    await insertParty(p);
+    await mutate((s) => reduce(s, { role: "admin" }, cmd("open")));
+    await mutate((s) =>
+      reduce(
+        s,
+        { role: "guest", playerId: "alice" },
+        cmd("submit", { value: "Éléphant rose" }),
+      ),
+    );
+    const deleted: string[] = [];
+    let committed = false;
+    env.BUCKET = {
+      async delete(id: string) {
+        // The party already points nowhere when the file goes.
+        committed = (await readParty())!.party.players.length === 0;
+        deleted.push(id);
+        if (id.startsWith("2")) throw new Error("already gone");
+      },
+    };
+    const result = await mutateDroppingSelfies((s) =>
+      reduce(s, { role: "admin" }, cmd("reset", { confirm: "123456" })),
+    );
+    expect(committed).toBe(true);
+    expect(deleted.sort()).toEqual([
+      "11111111-1111-4111-8111-111111111111",
+      "22222222-2222-4222-8222-222222222222",
+    ]);
+    expect(result.party.players).toEqual([]);
+    expect(result.party.events.length).toBeGreaterThan(0);
+    // Nothing more to delete the next time.
+    deleted.length = 0;
+    await mutateDroppingSelfies((s) => s);
+    expect(deleted).toEqual([]);
   });
 });
