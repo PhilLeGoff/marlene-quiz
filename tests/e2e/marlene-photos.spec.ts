@@ -7,7 +7,7 @@ import {
   type BrowserContext,
   type Page,
 } from "@playwright/test";
-import { takeSelfie } from "./helpers";
+import { signOutApi, takeSelfie } from "./helpers";
 const origin = process.env.TEST_BASE_URL ?? "http://127.0.0.1:3105";
 const PHONE = { width: 390, height: 844 },
   TV = { width: 1920, height: 1080 };
@@ -35,6 +35,18 @@ async function setup(browser: Browser, photos: string[] | null) {
   const room = (await (await host.request.get("/api/game?as=admin")).json())
     .room as string;
   await api(host.request, "admin", "reset", { confirm: room });
+  // Start with the excuses round: the host reveals it by hand, so closing it leaves
+  // the phones waiting (a round with a known answer would go straight to its reveal).
+  const ids: string[] = (
+    await (await host.request.get("/api/game?as=admin")).json()
+  ).questions.map((q: { id: string }) => q.id);
+  await api(host.request, "admin", "reorder", {
+    ids: ["q15", ...ids.filter((id) => id !== "q15")],
+  });
+  await api(host.request, "admin", "edit", {
+    questionId: "q15",
+    patch: { enabled: true },
+  });
   const withPhotos = async (ctx: BrowserContext) => {
     // Generated placeholders stand in for the photos of assets/marlene/ (never real photos here).
     if (photos)
@@ -53,10 +65,18 @@ async function setup(browser: Browser, photos: string[] | null) {
   await phone.goto("/play");
   await takeSelfie(phone);
   await expect(phone.getByText("Tu es sur la liste !")).toBeVisible();
+  // A second guest who never answers keeps the round open after the phone's answer.
+  const lateCtx = await browser.newContext();
+  await api(lateCtx.request, "guest", "join", {
+    nickname: unique("En retard"),
+  });
   const projector = await (
     await withPhotos(await browser.newContext({ viewport: TV }))
   ).newPage();
-  return { host, phoneCtx, phone, projector };
+  // Signed-in guests would keep later specs' rounds from closing by themselves.
+  const signOut = () =>
+    Promise.all([signOutApi(phoneCtx.request), signOutApi(lateCtx.request)]);
+  return { host, phoneCtx, phone, projector, signOut };
 }
 // Colourful test cards drawn in a page, landscape, portrait and square.
 async function placeholders(browser: Browser) {
@@ -110,7 +130,7 @@ async function answer(
 test("polaroids of Marlène show on phones while waiting and on the TV while answering", async ({
   browser,
 }) => {
-  const { host, phoneCtx, phone, projector } = await setup(
+  const { host, phoneCtx, phone, projector, signOut } = await setup(
     browser,
     await placeholders(browser),
   );
@@ -194,9 +214,13 @@ test("polaroids of Marlène show on phones while waiting and on the TV while ans
   await expect(projector.locator(".marlene-photos")).toHaveCount(0);
   await expect(phone.getByText("Les jeux sont faits !")).toBeVisible();
   await expect(phone.locator(".marlene-photos")).toHaveCount(1);
+  await signOut();
 });
 test("without photos, every screen stays as it was", async ({ browser }) => {
-  const { host, phoneCtx, phone, projector } = await setup(browser, []);
+  const { host, phoneCtx, phone, projector, signOut } = await setup(
+    browser,
+    [],
+  );
   const q = (await api(host.request, "admin", "open")).question;
   await projector.goto("/present");
   await expect(projector.getByRole("heading", { name: q.title })).toBeVisible();
@@ -208,6 +232,7 @@ test("without photos, every screen stays as it was", async ({ browser }) => {
   await expect(phone.locator(".marlene-photos")).toHaveCount(0);
   await expect(projector.locator(".marlene-photos")).toHaveCount(0);
   await expect(projector.locator(".present-stage.album")).toHaveCount(0);
+  await signOut();
 });
 test("the build shows exactly the photos of assets/marlene/", async ({
   browser,
@@ -215,12 +240,13 @@ test("the build shows exactly the photos of assets/marlene/", async ({
   const inFolder = readdirSync("assets/marlene").filter((f) =>
     /\.(jpe?g|png|webp|gif|avif)$/i.test(f),
   ).length;
-  const { phone } = await setup(browser, null);
+  const { phone, signOut } = await setup(browser, null);
   if (!inFolder) {
     await phone.waitForTimeout(1500);
     await expect(phone.locator(".marlene-photos")).toHaveCount(0);
-    return;
+  } else {
+    const img = await loaded(phone, ".marlene-photos .mp-card.top img");
+    expect(await img.getAttribute("src")).toMatch(/^\/_next\/static\/media\//);
   }
-  const img = await loaded(phone, ".marlene-photos .mp-card.top img");
-  expect(await img.getAttribute("src")).toMatch(/^\/_next\/static\/media\//);
+  await signOut();
 });

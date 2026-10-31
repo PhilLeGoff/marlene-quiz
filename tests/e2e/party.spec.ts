@@ -1,5 +1,5 @@
 import { test, expect, type APIRequestContext } from "@playwright/test";
-import { joinWithSelfie } from "./helpers";
+import { joinWithSelfie, MARLENE_PIN, signOutApi } from "./helpers";
 async function api(
   ctx: APIRequestContext,
   as: string,
@@ -82,8 +82,14 @@ test("complete multiplayer game: all answer types, secrecy, real race, anonymous
   if (initial.initialized)
     await api(host.request, "admin", "reset", { confirm: initial.room });
   let d = await state(host.request);
+  // Other specs reorder the rounds; this one starts with q1.
+  const ids: string[] = d.questions.map((q: { id: string }) => q.id);
+  await api(host.request, "admin", "reorder", {
+    ids: ["q1", ...ids.filter((x) => x !== "q1")],
+  });
+  d = await state(host.request);
   const room = d.room;
-  await api(star.request, "marlene", "join", { nickname: `Marlène ${runId}` });
+  await api(star.request, "marlene", "join", { pin: MARLENE_PIN });
   await api(star.request, "marlene", "consent");
   const tone = await host.request.post("/api/media", {
     headers: { Origin: process.env.TEST_BASE_URL ?? "http://127.0.0.1:3105" },
@@ -242,7 +248,8 @@ test("complete multiplayer game: all answer types, secrecy, real race, anonymous
       live = await state(host.request);
       expect(
         live.events.filter(
-          (e: any) => e.roundId === live.roundId && e.delta === 5,
+          (e: { roundId: string; delta: number }) =>
+            e.roundId === live.roundId && e.delta === 5,
         ),
       ).toHaveLength(1);
     } else if (q.kind === "drawing") {
@@ -293,7 +300,8 @@ test("complete multiplayer game: all answer types, secrecy, real race, anonymous
       live = await state(host.request);
       expect(
         live.events.filter(
-          (e: any) => e.roundId === live.roundId && e.delta === 5,
+          (e: { roundId: string; delta: number }) =>
+            e.roundId === live.roundId && e.delta === 5,
         ),
       ).toHaveLength(1);
     } else if (!q.sensitive) {
@@ -332,6 +340,7 @@ test("complete multiplayer game: all answer types, secrecy, real race, anonymous
     hp.getByRole("heading", { name: "À toi de mener la danse." }),
   ).toBeVisible();
   await hp.screenshot({ path: "outputs/admin-desktop.png", fullPage: true });
+  for (const context of [guest, bob]) await signOutApi(context.request);
   for (const context of [host, star, guest, bob, projector])
     await context.close();
 });
