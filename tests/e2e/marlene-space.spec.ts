@@ -80,7 +80,10 @@ test("Marlène signs in with her PIN, keeps her answers private, and plays a rou
     await projectorState(guestCtx.request),
   ]) {
     expect(view.secrets).toBeUndefined();
-    expect(JSON.stringify(view)).not.toContain(String(secret));
+    // As a JSON number: random IDs (player, room) may contain the digits.
+    expect(JSON.stringify(view)).not.toMatch(
+      new RegExp(`[:,\\[]${secret}[,}\\]]`),
+    );
   }
 
   // No consent panel: the host simply turns the body count on, or skips it.
