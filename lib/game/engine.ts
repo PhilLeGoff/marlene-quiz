@@ -18,6 +18,7 @@ import {
   marleneLeads,
 } from "./types";
 import { CLIP_MAX } from "./clip";
+import { formatGap } from "./time";
 import { PIN_LENGTH, isMarleneName, isPin, nicknameKey } from "./vip";
 export class GameError extends Error {
   constructor(
@@ -221,7 +222,8 @@ function scoreRound(s: Party, now: number) {
   }
 }
 // Slider rounds reward closeness: 5 points for the exact value, one less per step off
-// (per cm for the height), going negative for wild guesses.
+// (per cm for the height) or per full `pointEvery` off (per minute for the 5 km time),
+// going negative for wild guesses.
 export const SLIDER_POINTS = 5;
 export function sliderScore(
   slider: NonNullable<Question["slider"]>,
@@ -229,7 +231,15 @@ export function sliderScore(
   key: number,
   value: number,
 ) {
-  const off = Math.round(Math.abs(value - key) / slider.step);
+  const gap = Math.abs(value - key);
+  if (slider.pointEvery)
+    return {
+      delta: SLIDER_POINTS - Math.floor(gap / slider.pointEvery),
+      reason: !gap
+        ? "Pile poil !"
+        : `${slider.format === "time" ? formatGap(gap) : `${gap} ${unit}`} d’écart`,
+    };
+  const off = Math.round(gap / slider.step);
   return {
     delta: SLIDER_POINTS - off,
     reason: off ? `${off * slider.step} ${unit} d’écart` : "Pile poil !",

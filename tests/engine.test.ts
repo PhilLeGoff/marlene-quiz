@@ -99,7 +99,7 @@ describe("seed bank", () => {
     const p = createParty("123456", { admin: "x", marlene: "y" });
     const height = (x: Party) => x.questions.find((q) => q.id === "q5")!;
     expect(height(p).slider).toEqual({ min: 140, max: 200, step: 1 });
-    expect(p.questions.find((q) => q.id === "q9")!.slider).toBeUndefined();
+    expect(p.questions.find((q) => q.id === "q10")!.slider).toBeUndefined();
     delete height(p).slider;
     const upgraded = applySuppliedAnswers(p);
     expect(height(upgraded).slider).toEqual({ min: 140, max: 200, step: 1 });
@@ -710,7 +710,7 @@ describe("Marlène's answer is the key", () => {
     const flagged = seedQuestions
       .filter((q) => q.keyFromMarlene)
       .map((q) => q.id);
-    expect(flagged).toEqual(["q5", "q11", "q14"]);
+    expect(flagged).toEqual(["q5", "run5k", "q11", "q14"]);
     // None of them comes with a key: the host's is only a fallback.
     const p = createParty("123456", { admin: "x", marlene: "y" });
     for (const id of flagged) expect(p.secrets[id]).toBeUndefined();
@@ -890,7 +890,7 @@ describe("Marlène's answer is the key", () => {
       x.questions.find((q) => q.id === id)!.keyFromMarlene;
     const stored = legacy();
     const upgraded = applySuppliedAnswers(stored);
-    for (const id of ["q5", "q11", "q14"])
+    for (const id of ["q5", "run5k", "q11", "q14"])
       expect(flag(upgraded, id)).toBe(true);
     expect(flag(upgraded, "q4")).toBeUndefined();
     expect(upgraded.secrets.q5).toEqual({ number: 168 });

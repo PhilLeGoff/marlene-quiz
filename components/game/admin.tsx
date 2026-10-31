@@ -54,6 +54,7 @@ function isReference(d: View, playerId: string) {
     d.players.find((p) => p.id === playerId)?.role === "marlene"
   );
 }
+import { formatTime, isTime } from "@/lib/game/time";
 export function Admin() {
   const c = useParty("admin"),
     d = c.data;
@@ -384,7 +385,10 @@ export function Admin() {
                             ? "Un chef-d’œuvre attend son verdict."
                             : Array.isArray(sub.value)
                               ? sub.value.join(", ")
-                              : String(sub.value)}
+                              : typeof sub.value === "number" &&
+                                  isTime(question)
+                                ? formatTime(sub.value)
+                                : String(sub.value)}
                         </div>
                       )}
                       {!sub.moderated && (
