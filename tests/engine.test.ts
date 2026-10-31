@@ -197,9 +197,13 @@ describe("seed bank", () => {
       reason: "",
       at: 1000,
       adjustment: false,
-      generation: 1,
+      generation: scored.generation,
     });
     expect(applySuppliedAnswers(scored)).toBe(scored);
+    // Played before a reset: the old score stays in the history but no longer blocks it.
+    const rehearsed = structuredClone(scored);
+    rehearsed.generation++;
+    expect(sleep(applySuppliedAnswers(rehearsed)).kind).toBe("choice");
   });
   it("retains seven choices and protects optional rounds", () => {
     expect(seedQuestions.find((q) => q.id === "q4")?.options).toHaveLength(7);
