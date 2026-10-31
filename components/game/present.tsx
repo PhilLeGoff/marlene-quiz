@@ -7,6 +7,7 @@ import { Brand, EmptyParty } from "./art";
 import {
   AudioPlayer,
   GameMeta,
+  QuestionHint,
   Gallery,
   Loading,
   PlayerBubbles,
@@ -96,6 +97,7 @@ export function Present() {
           <>
             <GameMeta data={d} />
             <h1 className="question-title">{d.question?.title}</h1>
+            <QuestionHint kind={d.question?.kind} />
             {d.phase === "next_round" ? (
               <EmptyParty
                 title="Le prochain dossier arrive…"

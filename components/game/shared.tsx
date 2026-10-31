@@ -13,7 +13,7 @@ import {
 import { Brand, Avatar, Confetti } from "./art";
 import type { PartyClient } from "./use-party";
 import type { Question, Role, Stroke, View } from "@/lib/game/types";
-import { kindLabels, REVEALED } from "@/lib/game/types";
+import { isMultiSelect, kindLabels, REVEALED } from "@/lib/game/types";
 import { DrawingCanvas, DrawingPreview } from "./canvas";
 export const phaseLabels: Record<string, string> = {
   lobby: "Les invités arrivent",
@@ -130,6 +130,12 @@ export function GameMeta({ data }: { data: View }) {
       <Timer data={data} />
     </div>
   );
+}
+// Small note under the question title, kept out of the heading so its name stays the question.
+export function QuestionHint({ kind }: { kind?: Question["kind"] }) {
+  return isMultiSelect(kind) ? (
+    <p className="question-hint">Plusieurs réponses possibles</p>
+  ) : null;
 }
 // `room` lets the projector, which has no session, load selfies like it loads drawings.
 export function photoUrl(data: View, player: { photo?: string }) {

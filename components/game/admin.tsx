@@ -29,6 +29,7 @@ import {
   AppShell,
   AudioPlayer,
   GameMeta,
+  QuestionHint,
   Loading,
   phaseLabels,
   photoUrl,
@@ -188,6 +189,7 @@ export function Admin() {
                   ) : (
                     <>
                       <h2 className="question-title">{question?.title}</h2>
+                      <QuestionHint kind={question?.kind} />
                       {d.phase === "leaderboard" ? (
                         <Ranking data={d} />
                       ) : REVEALED.includes(d.phase) ? (
