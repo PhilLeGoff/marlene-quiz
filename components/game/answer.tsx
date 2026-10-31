@@ -8,6 +8,7 @@ import { Outfit } from "./shared";
 import { PinPad } from "./pin-pad";
 import { PIN_LENGTH } from "@/lib/game/vip";
 import { MarleneSlideshow } from "./marlene-photos";
+import { MatchAnswer } from "./match";
 export function Answer({ data, c }: { data: View; c: PartyClient }) {
   const q = data.question!;
   const [selected, setSelected] = useState<string[]>([]),
@@ -48,6 +49,8 @@ export function Answer({ data, c }: { data: View; c: PartyClient }) {
         <MarleneSlideshow />
       </>
     );
+  if (q.kind === "match")
+    return <MatchAnswer q={q} busy={c.busy} onSubmit={(v) => void submit(v)} />;
   const single = q.kind === "choice" || q.kind === "blind";
   const select = (v: string) =>
     setSelected((old) =>

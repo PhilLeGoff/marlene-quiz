@@ -164,6 +164,8 @@ test("complete multiplayer game: all answer types, secrecy, real race, anonymous
         questionId: q.id,
         prompt: "Un chat de test",
       });
+    } else if (q.kind === "match") {
+      values[q.id] = d.secrets[q.id].answers;
     } else if (q.kind === "reveal") {
       await api(star.request, "marlene", "private", {
         questionId: q.id,

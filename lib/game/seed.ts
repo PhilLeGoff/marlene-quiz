@@ -28,6 +28,25 @@ const q = (
   clipEnd: 30,
   ...extra,
 });
+// The exes round: photos of Marlène's exes merged with dogs (assets/exes/ex-N.jpg) to
+// match with their names. The names are the options, in alphabetical order; the private
+// key names each photo in `photos` order. Seeded here only: the host edits both live.
+export const EXES_MATCH_ID = "q18";
+const exesMatch = q(
+  18,
+  "Associe chaque ex de Marlène à son double canin",
+  "match",
+  ["Aloïs", "Guillaume", "Renaud", "Valentin"],
+  {
+    confirmed: true,
+    duration: 60,
+    photos: ["ex-1", "ex-2", "ex-3", "ex-4"],
+    note: "Bonnes associations fournies : photo 1 Guillaume, photo 2 Aloïs, photo 3 Valentin, photo 4 Renaud. Un point par bonne association.",
+  },
+);
+export const exesMatchKey: Secret = {
+  answers: ["Guillaume", "Aloïs", "Valentin", "Renaud"],
+};
 export const seedQuestions: Question[] = [
   q(
     1,
@@ -136,6 +155,7 @@ export const seedQuestions: Question[] = [
     ),
     id: `q6${id}`,
   })),
+  exesMatch,
   q(
     7,
     "Quel est l’élément incontournable de Marlène pour aller dormir ?",
@@ -348,7 +368,23 @@ export function applySuppliedAnswers(stored: Party): Party {
       ...source.slider,
     };
   }
-  return upgradeSleepQuestion(next);
+  return addExesMatch(upgradeSleepQuestion(next));
+}
+// Parties stored before the exes round get it once, right after the blind tests, with
+// its key. The marker keeps a round the host deleted from coming back. Inserting before
+// the current question shifts `index` so the round being played (or queued) stays put.
+const exesMatchVersion = "exes-match-v1";
+function addExesMatch(original: Party): Party {
+  if (original.questionPresetVersions?.[EXES_MATCH_ID]) return original;
+  const next = structuredClone(original);
+  (next.questionPresetVersions ??= {})[EXES_MATCH_ID] = exesMatchVersion;
+  if (next.questions.some((q) => q.id === EXES_MATCH_ID)) return next;
+  const lastBlind = next.questions.findLastIndex((q) => q.kind === "blind");
+  const at = lastBlind >= 0 ? lastBlind + 1 : next.questions.length;
+  next.questions.splice(at, 0, structuredClone(exesMatch));
+  if (at <= next.index) next.index++;
+  next.secrets[EXES_MATCH_ID] ??= structuredClone(exesMatchKey);
+  return next;
 }
 // q7 used to be the multi-select pyjama round "Comment dort Marlène ?". Parties seeded
 // with it get the single-answer sleep question instead, as long as the host hasn't
@@ -386,7 +422,10 @@ export function createParty(
   credentials: Party["credentials"],
   now = Date.now(),
 ): Party {
-  const secrets = structuredClone(suppliedAnswers);
+  const secrets = structuredClone({
+    ...suppliedAnswers,
+    [EXES_MATCH_ID]: exesMatchKey,
+  });
   return {
     room,
     phase: "lobby",
@@ -397,9 +436,10 @@ export function createParty(
     deadline: 0,
     questions: structuredClone(seedQuestions),
     secrets,
-    questionPresetVersions: Object.fromEntries(
-      presetIds.map((id) => [id, presetVersion]),
-    ),
+    questionPresetVersions: {
+      ...Object.fromEntries(presetIds.map((id) => [id, presetVersion])),
+      [EXES_MATCH_ID]: exesMatchVersion,
+    },
     players: [],
     submissions: {},
     strokes: [],

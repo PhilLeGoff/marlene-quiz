@@ -4,6 +4,7 @@ import { Check, LockKeyhole, Save, SquarePen } from "lucide-react";
 import type { Question, Secret } from "@/lib/game/types";
 import type { PartyClient } from "./use-party";
 import { PIN_LENGTH } from "@/lib/game/vip";
+import { MatchKeyFields } from "./match";
 export function PrivateForm({
   q,
   c,
@@ -23,6 +24,12 @@ export function PrivateForm({
   const options =
     ["choice", "multi", "outfit", "photo"].includes(q.kind) ||
     (q.kind === "blind" && q.options.length > 0);
+  const isMatch = q.kind === "match";
+  // A matching key: one distinct name per photo.
+  const matchReady =
+    answers.length === (q.photos ?? []).length &&
+    answers.every(Boolean) &&
+    new Set(answers).size === answers.length;
   const isDrawing = q.kind === "drawing";
   const isNum = q.kind === "number" || q.sensitive;
   if (q.kind === "creative")
@@ -58,11 +65,18 @@ export function PrivateForm({
         </p>
         <p>
           <strong>
-            {secret?.answers?.join(" + ") ??
-              secret?.text ??
-              (secret?.number !== undefined
-                ? `${secret.number} ${q.unit}`
-                : secret?.prompt)}
+            {isMatch
+              ? secret?.answers
+                  ?.map((name, i) => `Photo ${i + 1} : ${name}`)
+                  .join(" · ")
+              : null}
+            {isMatch
+              ? null
+              : (secret?.answers?.join(" + ") ??
+                secret?.text ??
+                (secret?.number !== undefined
+                  ? `${secret.number} ${q.unit}`
+                  : secret?.prompt))}
           </strong>
         </p>
         <button
@@ -88,7 +102,7 @@ export function PrivateForm({
       onSubmit={async (e) => {
         e.preventDefault();
         const values: Record<string, unknown> = { questionId: q.id };
-        if (options) values.answers = answers;
+        if (options || isMatch) values.answers = answers;
         else if (isNum) values.number = Number(num);
         else if (isDrawing) values.prompt = prompt;
         else {
@@ -115,7 +129,23 @@ export function PrivateForm({
           ? "Le thème sera visible dès l’ouverture du défi."
           : "Les invités ne verront rien avant la révélation autorisée par l’hôte."}
       </p>
-      {options ? (
+      {isMatch ? (
+        <>
+          <MatchKeyFields
+            q={q}
+            value={answers}
+            onChange={(next) => {
+              setSaved(false);
+              setAnswers(next);
+            }}
+          />
+          {!matchReady && answers.some(Boolean) && (
+            <p className="small-text muted">
+              Donne un prénom différent à chaque photo.
+            </p>
+          )}
+        </>
+      ) : options ? (
         <div className="check-options">
           {q.options.map((v) => (
             <label key={v} className="checkbox-label">
@@ -217,7 +247,9 @@ export function PrivateForm({
       )}
       <button
         className="btn lilac"
-        disabled={c.busy || (options && !answers.length)}
+        disabled={
+          c.busy || (options && !answers.length) || (isMatch && !matchReady)
+        }
       >
         <Save size={16} />{" "}
         {isDrawing ? "Lancer ce thème" : "Enregistrer en privé"}

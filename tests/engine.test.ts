@@ -71,9 +71,10 @@ const stroke: Stroke = {
 describe("seed bank", () => {
   it("keeps supplied order and splits the blind test into three rounds", () => {
     // q8 (Marlène's PIN as a bonus question) was removed: the joke is in her login.
-    expect(seedQuestions).toHaveLength(18);
+    // q18, the exes matching round, comes right after the blind tests.
+    expect(seedQuestions).toHaveLength(19);
     expect(seedQuestions.map((q) => q.source)).toEqual([
-      1, 2, 3, 4, 5, 6, 6, 6, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17,
+      1, 2, 3, 4, 5, 6, 6, 6, 18, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17,
     ]);
   });
   it("never guesses unknown personal keys", () => {
@@ -86,6 +87,7 @@ describe("seed bank", () => {
       "q6a",
       "q6b",
       "q6c",
+      "q18",
       "q7",
       "q10",
       "q13",
