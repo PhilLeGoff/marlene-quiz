@@ -52,11 +52,11 @@ function opened(id = "q3") {
     });
   return run(p, admin, "open");
 }
-// A host-made "Code mystère" round with the fictional code 8246.
+// A host-made "Code mystère" round with the fictional code 824613.
 function pinParty() {
   let p = party("q3");
   p = run(p, admin, "edit", { questionId: "q3", patch: { kind: "pin" } });
-  return run(p, admin, "private", { questionId: "q3", text: "8246" });
+  return run(p, admin, "private", { questionId: "q3", text: "824613" });
 }
 const stroke: Stroke = {
   id: "test-stroke",
@@ -364,8 +364,8 @@ describe("submissions, timers, drawing and winner races", () => {
   it("keeps several-try rounds open after everyone's first answer", () => {
     let p = pinParty();
     p = run(p, admin, "open");
-    p = run(p, guest(), "submit", { value: "1111" });
-    p = run(p, guest("bob"), "submit", { value: "2222" });
+    p = run(p, guest(), "submit", { value: "111111" });
+    p = run(p, guest("bob"), "submit", { value: "222222" });
     expect(p.phase).toBe("question_open");
   });
   it("rejects duplicate and expired submissions", () => {
@@ -435,8 +435,8 @@ describe("submissions, timers, drawing and winner races", () => {
   it("limits PIN attempts and uses a fictional secret", () => {
     let p = run(pinParty(), admin, "open");
     for (let i = 0; i < 3; i++)
-      p = run(p, guest(), "submit", { value: "1111" });
-    expect(() => run(p, guest(), "submit", { value: "8246" })).toThrow(
+      p = run(p, guest(), "submit", { value: "111111" });
+    expect(() => run(p, guest(), "submit", { value: "824613" })).toThrow(
       "tentatives",
     );
   });

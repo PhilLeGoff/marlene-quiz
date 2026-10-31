@@ -68,7 +68,7 @@ export async function joinWithSelfie(page: Page, nickname: string) {
 export const origin = process.env.TEST_BASE_URL ?? "http://127.0.0.1:3105";
 export const ADMIN_PASSWORD = "admin-test-only";
 // Marlène's VIP code: the only place the tests spell it out.
-export const MARLENE_PIN = "1234";
+export const MARLENE_PIN = "123456";
 // Phones poll the server every 1.6 s; give them room to catch up with the host.
 export const PHONE = { timeout: 30_000 };
 export const PHONE_SIZE: BrowserContextOptions = {

@@ -149,9 +149,9 @@ test("complete multiplayer game: all answer types, secrecy, real race, anonymous
     } else if (q.kind === "pin") {
       await api(host.request, "admin", "private", {
         questionId: q.id,
-        text: "8246",
+        text: "824613",
       });
-      values[q.id] = "8246";
+      values[q.id] = "824613";
     } else if (q.kind === "pictionary") {
       await api(star.request, "marlene", "private", {
         questionId: q.id,

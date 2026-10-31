@@ -16,7 +16,7 @@ async function joinFromHome(page: Page, nickname: string) {
   await page.getByRole("button", { name: /Rejoindre la fête/ }).click();
 }
 
-test("typing marlene on the home page leads to her PIN pad, and 1234 opens her space", async ({
+test("typing marlene on the home page leads to her PIN pad, and 123456 opens her space", async ({
   browser,
 }, testInfo) => {
   const context = await browser.newContext(phone);
@@ -26,11 +26,11 @@ test("typing marlene on the home page leads to her PIN pad, and 1234 opens her s
   await expect(
     page.getByRole("heading", { name: "On t’a reconnue, Marlène !" }),
   ).toBeVisible();
-  await expect(page.getByText("Entre ton code à 4 chiffres")).toBeVisible();
-  await expect(page.locator(".phone-pin-boxes span")).toHaveCount(4);
+  await expect(page.getByText("Entre ton code à 6 chiffres")).toBeVisible();
+  await expect(page.locator(".phone-pin-boxes span")).toHaveCount(6);
 
   await typeOnKeypad(page, "12");
-  await expect(page.getByText("2 chiffres sur 4")).toBeVisible();
+  await expect(page.getByText("2 chiffres sur 6")).toBeVisible();
   await page.screenshot({
     path: testInfo.outputPath("marlene-pin-mobile.png"),
     fullPage: true,
@@ -42,27 +42,31 @@ test("typing marlene on the home page leads to her PIN pad, and 1234 opens her s
     .getByRole("button", { name: "Effacer le dernier chiffre" })
     .click();
 
-  // The pad stops at four digits; a wrong code keeps her on it with the usual error.
-  await typeOnKeypad(page, "9876");
+  // The pad stops at six digits; a wrong code keeps her on it with the usual error.
+  await typeOnKeypad(page, "987654");
   await expect(
     page.getByRole("button", { name: "5", exact: true }),
   ).toBeDisabled();
   await page.getByRole("button", { name: "Entrer dans mon royaume" }).click();
   await expect(page.getByRole("alert")).toContainText("Code PIN incorrect");
-  await expect(page.getByText("0 chiffre sur 4")).toBeVisible();
+  await expect(page.getByText("0 chiffre sur 6")).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Ce soir, c’est toi la reine." }),
   ).toHaveCount(0);
 
-  await typeOnKeypad(page, "1234");
+  await typeOnKeypad(page, "123456");
   await page.getByRole("button", { name: "Entrer dans mon royaume" }).click();
   await expect(
     page.getByRole("heading", { name: "Ce soir, c’est toi la reine." }),
   ).toBeVisible();
+  await page.screenshot({
+    path: testInfo.outputPath("marlene-signed-in-mobile.png"),
+    fullPage: true,
+  });
   const me = await (await context.request.get("/api/game?as=marlene")).json();
   expect(me.role).toBe("marlene");
   expect(me.vipPin).toBeUndefined();
-  expect(JSON.stringify(me)).not.toContain('"1234"');
+  expect(JSON.stringify(me)).not.toContain('"123456"');
   await context.close();
 });
 
