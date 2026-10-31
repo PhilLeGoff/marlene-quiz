@@ -362,7 +362,11 @@ function upgradeSleepQuestion(original: Party): Party {
     at < original.index ||
     (at === original.index &&
       !["lobby", "next_round"].includes(original.phase));
-  if (reached || original.events.some((e) => e.questionId === "q7"))
+  // Scores from earlier generations (a reset, a rehearsal) don't count as playing it.
+  const scored = original.events.some(
+    (e) => e.questionId === "q7" && e.generation === original.generation,
+  );
+  if (reached || scored)
     return original;
   const source = seedQuestions.find((q) => q.id === "q7")!;
   const next = structuredClone(original);
