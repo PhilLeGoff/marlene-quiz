@@ -6,6 +6,8 @@ import { kindLabels } from "@/lib/game/types";
 import type { PartyClient } from "./use-party";
 import { Modal } from "./modal";
 import { PrivateForm } from "./private-form";
+import { ClipPicker } from "./clip-picker";
+import { clipProblem } from "@/lib/game/clip";
 export function QuestionEditor({
   q,
   c,
@@ -21,6 +23,8 @@ export function QuestionEditor({
     [uploading, setUploading] = useState(false),
     [media, setMedia] = useState(q.media);
   const [message, setMessage] = useState("");
+  // Length of the blind-test song once the section picker has loaded it.
+  const [songLength, setSongLength] = useState(0);
   async function upload(file: File) {
     setUploading(true);
     setMessage("");
@@ -30,8 +34,13 @@ export function QuestionEditor({
       const r = await fetch("/api/media", { method: "POST", body: form });
       const v = (await r.json()) as { error?: string; url: string };
       if (!r.ok) throw new Error(v.error);
-      setMedia((old) => [...old, v.url]);
-      setMessage("Média importé. Enregistre la question pour l’associer.");
+      // A blind test plays one song: a new upload replaces it.
+      setMedia((old) => (draft.kind === "blind" ? [v.url] : [...old, v.url]));
+      setMessage(
+        draft.kind === "blind"
+          ? "Chanson importée. Choisis le passage, puis enregistre la manche."
+          : "Média importé. Enregistre la question pour l’associer.",
+      );
     } catch (e) {
       setMessage(e instanceof Error ? e.message : "Import impossible.");
     } finally {
@@ -40,6 +49,16 @@ export function QuestionEditor({
   }
   async function save(e: React.FormEvent) {
     e.preventDefault();
+    if (draft.kind === "blind") {
+      const problem = clipProblem(
+        { start: draft.clipStart, end: draft.clipEnd },
+        media[0] && songLength ? songLength : undefined,
+      );
+      if (problem) {
+        setMessage(problem);
+        return;
+      }
+    }
     const patch: Partial<Question> = {
       title: draft.title,
       note: draft.note,
@@ -241,30 +260,18 @@ export function QuestionEditor({
                 </div>
               ))}
               {draft.kind === "blind" && (
-                <div className="form-grid">
-                  <label>
-                    Début de l’extrait (s)
-                    <input
-                      type="number"
-                      min={0}
-                      value={draft.clipStart}
-                      onChange={(e) =>
-                        change("clipStart", Number(e.target.value))
-                      }
-                    />
-                  </label>
-                  <label>
-                    Fin de l’extrait (s)
-                    <input
-                      type="number"
-                      min={1}
-                      value={draft.clipEnd}
-                      onChange={(e) =>
-                        change("clipEnd", Number(e.target.value))
-                      }
-                    />
-                  </label>
-                </div>
+                <ClipPicker
+                  src={media[0]}
+                  clip={{ start: draft.clipStart, end: draft.clipEnd }}
+                  onChange={({ start, end }) =>
+                    setDraft((old) => ({
+                      ...old,
+                      clipStart: start,
+                      clipEnd: end,
+                    }))
+                  }
+                  onDuration={setSongLength}
+                />
               )}
             </>
           )}

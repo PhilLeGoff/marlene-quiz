@@ -10,6 +10,7 @@ import type {
   View,
 } from "./types";
 import { OPEN, REVEALED, isMultiSelect } from "./types";
+import { CLIP_MAX } from "./clip";
 import { PIN_LENGTH, isMarleneName, isPin, nicknameKey } from "./vip";
 export class GameError extends Error {
   constructor(
@@ -1005,6 +1006,16 @@ export function reduce(
         item.duration >= 10 && item.attempts >= 1,
         "Minima : 10 secondes et 1 tentative.",
       );
+      if (patch.clipStart !== undefined || patch.clipEnd !== undefined) {
+        must(
+          item.clipEnd > item.clipStart,
+          "La fin de l’extrait doit venir après le début.",
+        );
+        must(
+          item.clipEnd - item.clipStart <= CLIP_MAX,
+          `L’extrait doit durer au plus ${CLIP_MAX} secondes.`,
+        );
+      }
       if (patch.media) {
         must(
           Array.isArray(patch.media) &&
