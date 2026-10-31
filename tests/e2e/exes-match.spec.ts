@@ -156,8 +156,12 @@ test("guests match the exes to their dog photos, then the reveal names them", as
   );
   expect(Object.values(points).sort()).toEqual([1, 4]);
   await tv.screenshot({ path: shots("tv-reveal") });
-  await bob.evaluate(() => (document.activeElement as HTMLElement)?.blur());
-  await bob.screenshot({ path: shots("phone-reveal"), fullPage: true });
+  // A full-page capture would show the off-screen skip link: leave it out.
+  await bob.screenshot({
+    path: shots("phone-reveal"),
+    fullPage: true,
+    style: ".skip-link { display: none; }",
+  });
 
   // The host's editor: the names on one tab, which name goes with each photo on the other.
   await hp.getByRole("tab", { name: "Les manches" }).click();
