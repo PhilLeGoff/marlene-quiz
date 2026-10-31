@@ -9,6 +9,7 @@ import {
   hostSignIn,
   joinWithSelfie,
   marleneSignIn,
+  MARLENE_PIN,
   OPEN_PHASES,
   PHONE,
   pickSong,
@@ -17,6 +18,8 @@ import {
   resetParty,
   scribble,
   signOut,
+  takeSelfie,
+  typePin,
   state,
   unique,
   upload,
@@ -899,24 +902,32 @@ test("a whole party from the guest phones, Marlène’s space, the TV and the ho
   await alice.screenshot({ path: shots("phone-podium"), fullPage: true });
   await mp.screenshot({ path: shots("marlene-podium") });
 
-  // ── The host starts over: everyone is back in the lobby with zero points ──────────
+  // ── The host starts over: everyone is signed out and the lobby is empty ───────────
   await hp.getByRole("button", { name: "Recommencer" }).click();
   await expect(
     hp.getByRole("heading", { name: "On recommence à zéro ?" }),
   ).toBeVisible();
   await hp.getByRole("button", { name: "Oui, recommencer" }).click();
   await expect(hp.getByText("Tout le monde a son verre ?")).toBeVisible();
-  for (const page of phones) {
-    await expect(
-      page.getByRole("heading", { name: "Tu es sur la liste !" }),
-    ).toBeVisible(PHONE);
-    await expect(page.locator(".pill.butter")).toHaveText("0 points");
-  }
+  expect((await state(host)).players).toHaveLength(0);
+  for (const page of phones)
+    await expect(page.getByLabel("Ton petit nom")).toBeVisible(PHONE);
   await expect(tv.locator(".qr-wrap svg")).toBeVisible(PHONE);
+  // Marlène is back on her PIN pad and comes back in with it.
+  await expect(
+    mp.getByRole("group", { name: "Clavier numérique" }),
+  ).toBeVisible(PHONE);
+  await typePin(mp, MARLENE_PIN, "Entrer dans mon royaume");
+  // Her selfie went with the wipe: she takes a new one, like a guest.
+  await expect(
+    mp.getByRole("heading", { name: "Un selfie, et tu entres !" }),
+  ).toBeVisible(PHONE);
+  await takeSelfie(mp);
   await expect(mp.getByText("Bienvenue dans ton royaume.")).toBeVisible(PHONE);
+  await expect(mp.locator(".page-title .pill")).toHaveText("0 points");
 
-  // Signed-in players keep later specs' rounds open, Marlène included.
-  for (const page of [...phones, mp]) await signOut(page);
+  // Marlène signed in again keeps later specs' rounds open.
+  await signOut(mp);
   for (const ctx of [hostCtx, tvCtx, starCtx, aliceCtx, bobCtx])
     await ctx.close();
 });

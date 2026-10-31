@@ -224,6 +224,9 @@ test("a late arrival answers the open round first, then takes the selfie", async
   await hostAction(host.request, "reorder", {
     ids: ["q4", ...ids.filter((x: string) => x !== "q4")],
   });
+  // A guest who never answers keeps the round open after the late arrival's answer.
+  const idle = await browser.newContext();
+  await join(idle.request, "guest", unique("Distrait"));
   await hostAction(host.request, "open");
   const late = await (await browser.newContext(PHONE)).newPage();
   await joinWithSelfie(late, unique("Retardataire"));
@@ -240,11 +243,14 @@ test("a late arrival answers the open round first, then takes the selfie", async
   const state = await host.request.get("/api/game?as=admin");
   expect(state.status(), await state.text()).toBe(200);
   const live = await state.json();
-  // Guests left signed in elsewhere would keep the round open.
   if (live.phase === "question_open") await hostAction(host.request, "close");
   await expect(required(late)).toBeVisible({ timeout: 30000 });
   await takeSelfie(late);
   await late.getByRole("button", { name: "Se déconnecter" }).click();
+  await idle.request.post("/api/game?as=guest", {
+    headers: { Origin: origin },
+    data: { id: crypto.randomUUID(), action: "logout" },
+  });
 });
 test("when the host removes a selfie, the guest is sent back to the step", async ({
   browser,

@@ -40,20 +40,9 @@ test("Marlène signs in with her PIN, never sees the answer keys, and plays a ro
   await expect(mp.getByRole("alert")).toContainText("Code PIN incorrect");
   expect((await state(starCtx.request, "marlene")).role).toBeNull();
   await marleneSignIn(mp, undefined, { selfie: false });
-  // Like every guest, she needs a selfie before anything else. If an earlier spec left her
-  // one, the host removes it, which sends her back to the step as it would a guest.
-  const signedIn = await state(starCtx.request, "marlene");
-  const herId = signedIn.playerId as string;
-  const old = signedIn.players.find(
-    (p: { id: string }) => p.id === herId,
-  )?.photo;
-  if (old) {
-    const removed = await host.delete(
-      `/api/avatar?as=admin&playerId=${encodeURIComponent(herId)}`,
-      { headers: { Origin: origin } },
-    );
-    expect(removed.ok(), await removed.text()).toBe(true);
-  }
+  // Like every guest, she needs a selfie before anything else: the reset above wiped any
+  // earlier one.
+  const herId = (await state(starCtx.request, "marlene")).playerId as string;
   const step = mp.getByRole("heading", { name: "Un selfie, et tu entres !" });
   await expect(step).toBeVisible(PHONE);
   await expect(mp.locator(".star-current")).toHaveCount(0);
@@ -65,6 +54,15 @@ test("Marlène signs in with her PIN, never sees the answer keys, and plays a ro
   });
   // A reload doesn't get her past it.
   await mp.reload();
+  await expect(step).toBeVisible(PHONE);
+  await takeSelfie(mp);
+  await expect(mp.getByText("Bienvenue dans ton royaume.")).toBeVisible();
+  // The host removing it sends her back to the step, as it would a guest.
+  const removed = await host.delete(
+    `/api/avatar?as=admin&playerId=${encodeURIComponent(herId)}`,
+    { headers: { Origin: origin } },
+  );
+  expect(removed.ok(), await removed.text()).toBe(true);
   await expect(step).toBeVisible(PHONE);
   await takeSelfie(mp);
   await expect(mp.getByText("Bienvenue dans ton royaume.")).toBeVisible();

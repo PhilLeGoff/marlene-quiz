@@ -100,22 +100,21 @@ test("host sign-in, running order, score adjustment, early stop and a new party"
     0,
   );
 
-  // A new party from the settings: back to the lobby, the old points no longer count.
+  // A new party from the settings: back to the lobby, and the guest has to join again.
   await hp.getByRole("tab", { name: "Réglages" }).click();
   await hp.getByRole("button", { name: "Nouvelle partie" }).click();
   await hp.getByRole("button", { name: "Oui, recommencer" }).click();
   await expect(hp.getByText("Tout le monde a son verre ?")).toBeVisible();
-  await expect(
-    phone.getByRole("heading", { name: "Tu es sur la liste !" }),
-  ).toBeVisible(PHONE);
-  await expect(phone.locator(".pill.butter")).toHaveText("0 points");
+  await expect(phone.getByLabel("Ton petit nom")).toBeVisible(PHONE);
   await expect(tv.getByText("Scanne, entre ton nom")).toBeVisible(PHONE);
-
-  await signOut(phone);
   await expect(hp.locator(".player-bubble", { hasText: name })).toHaveCount(
     0,
     PHONE,
   );
+  // Joining again starts from zero.
+  await joinWithSelfie(phone, name);
+  await expect(phone.locator(".pill.butter")).toHaveText("0 points");
+  await signOut(phone);
   await signOut(hp);
   await expect(hp.getByLabel("Mot de passe administrateur")).toBeVisible();
   await Promise.all([hostCtx.close(), phoneCtx.close(), tv.context().close()]);
