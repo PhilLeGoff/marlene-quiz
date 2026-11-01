@@ -19,6 +19,7 @@ beforeEach(() => {
     "0001_misty_karen_page.sql",
     "0002_score_audit.sql",
     "0003_game_reports.sql",
+    "0004_cheap_events_guard.sql",
   ])
     db.exec(readFileSync(`drizzle/${file}`, "utf8"));
   env.DB = {
